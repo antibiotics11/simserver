@@ -1,12 +1,14 @@
-# SimServer
+# simserver
 
 ## info
 
-서버의 HTML 파일을 조회할 수 있는 간단한 웹서버입니다.
+PHP-CLI로 작성된 간단한 HTTP 서버입니다. <br>
+멀티프로세스 사용을 위해 PHP 7.* 및 pcntl 확장이 필요합니다.
 
-A simple web server that allow clients to view HTML files on the server.
+A basic HTTP server written in PHP-CLI. <br>
+It requires PHP 7.* and pcntl extension for multi processing.
 
 ## scrennshots
 
-![1](https://user-images.githubusercontent.com/75349747/150633645-22a6c220-131e-4591-9987-064857681bb7.PNG)
-![2](https://user-images.githubusercontent.com/75349747/150633647-40a4da80-5eaf-4b30-88ad-fdc71dbeb32c.PNG)
+![1](https://user-images.githubusercontent.com/75349747/150695022-6d0c6e0b-9885-4235-b2de-3af8e1ab16ce.PNG)
+![2](https://user-images.githubusercontent.com/75349747/150695024-cdc3acea-151e-4c52-9b92-08dddf82753f.PNG)
