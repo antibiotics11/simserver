@@ -1,56 +1,67 @@
 #!/usr/bin/php
 <?php
-
-	//ini_set("display_errors", "0");
-	
 	include "func.php";
 	include "conf.php";
 	include "http.php";
 	
+	// PHP 버전 7.* 아니면 메세지 출력하고 종료
 	if (!checkPHPVersion()) {
-		echo "\033[1;31m >> Fatal Error: PHP version 7.0 or higher is requierd. \033[0m\n";
-		exit(0);
+		consoleError("PHP version 7.* is required.", true); 
 	}
-	
-	$http = new httpServer($_SERVERCONF["SERVER_NAME"], $_SERVERCONF["PORT"], $_SERVERCONF["DOC_ROOT"], $_SERVERCONF["DOC_INDEX"]);
 	
 	// 소켓 만들고 바인딩
 	$httpSocket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-	socket_bind($httpSocket, $http->getServerName(), $http->getListeningPort());
-	
-	// 소켓 에러 발생했으면 강제종료
+	socket_bind($httpSocket, $_SERVERCONF["SERVER_NAME"], $_SERVERCONF["PORT"]);
+	// 소켓 에러 발생하면 메세지 출력하고 종료
 	if (socket_last_error()) {
-		echo "\033[1;31m >> Fatal Error: An unknown error occured creating socket. \033[0m\n";
-		exit(0);
+		consoleError("Failed to listening port ".$_SERVERCONF["PORT"], true); 
 	}
 	
 	// 설정된 포트로 리스닝 시작
 	socket_listen($httpSocket);
+	// 시그널 핸들러 생성
+	pcntl_signal(SIGCHLD, SIG_IGN);
 	
-	echo "\033[1;34m >> Starting SimServer v0.1... \033[0m \n";
-	echo "\033[1;34m >> Current time ".getCurrentTime()." \n";
-	echo "\033[1;34m >> Listening ".$http->getServerName().":".$http->getListeningPort()." \033[0m \n";
+	consoleMessage("Starting simserver v0.2 ...");
+	consoleMessage("Current time ".getCurrentTime());
+	consoleMessage("Listening ".$_SERVERCONF["SERVER_NAME"].":".$_SERVERCONF["PORT"]);
+	consoleMessage(chr(13).chr(10));
 	
+	// 클라이언트가 접속한 경우
 	while ($clientSocket = socket_accept($httpSocket)) {
-		$requestHeader = socket_read($clientSocket, 4096);
 		socket_getpeername($clientSocket, $clientName, $clientPort);
+		consoleMessage(getCurrentTime().chr(13).chr(10)." Client ".$clientName." connected...");
 		
-		$_HEADER = $http->getRequestHeader($requestHeader);
-		$_HEADER["CLIENT_NAME"] = $clientName;
+		// 자식 프로세스 생성, 실패하면 메세지 출력
+		$processPid = pcntl_fork();
+		if ($processPid == -1) {
+			consoleError("Failed to create sub process for connection", false); 
 		
-		$connectionLog = putHttpLogFile($_HEADER, getCurrentTime(), $_SERVERCONF["LOG_DIR"]);
-		echo "\n\033[1;34m >> Client Connected. \033[0m \n";
-		//echo $connectionLog."\n";
-		
-		$httpStatusCode = $http->setStatusCode($_HEADER);
-		$responseHeader = $http->setResponseHeader($httpStatusCode, $_HEADER);
-		
-		$responseSent = socket_write($clientSocket, $responseHeader);
-		echo "\033[1;34m >> Sending response header to client... \033[0m \n";
-		if (!$responseSent) {
-			echo "\n\033[1;31m >> ERROR: Failed to send response header. \033[0m \n\n";
+		// 요청 처리는 자식 프로세스에 할당
+		} else if ($processPid == 0) {
+			
+			// 소켓 읽어와서 요청 헤더 정보 저장
+			$requestHeader = socket_read($clientSocket, 4096);
+			$_HEADER = getRequestHeader($requestHeader);
+			$_HEADER["CLIENT_NAME"] = $clientName;
+			
+			// 응답 헤더 설정
+			$httpStatusCode = setStatusCode($_HEADER, $_SERVERCONF);
+			$responseHeader = setResponseHeader($_HEADER, $_SERVERCONF, $httpStatusCode);
+			
+			// 응답 헤더 전송, 실패하면 메세지 출력
+			$responseSent = socket_write($clientSocket, $responseHeader);
+			consoleMessage($_HEADER["METHOD"]." ".$_HEADER["URI"]." ".$httpStatusCode);
+			consoleMessage("Sending response header to client...");
+			if (!$responseSent) {
+				consoleError("Failed to send response header", false);
+			}
+			
+			// 로그 입력
+			putConnectionLog($_HEADER, $_SERVERCONF["LOG_DIR"]);
 		}
 		
-		echo "\n\033[1;34m >> Connection closed. \033[0m \n\n";
+		// 접속 종료
+		socket_close($clientSocket);
+		consoleMessage("Connection closed");
 	}
-	
