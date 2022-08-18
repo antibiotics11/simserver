@@ -1,9 +1,10 @@
-# simserver
+#simserver
 
-## info
+This is a project to implement Application Layer Procotols in PHP.
 
-PHP-CLI로 작성된 간단한 HTTP 서버입니다. <br>
-PHP 8.0 및 pcntl 확장이 필요합니다.
+PHP로 응용 계층 프로토콜을 구현해보는 프로젝트입니다.
 
-A simple HTTP server written in PHP-CLI. <br>
-It requires PHP 8.0 with pcntl extension.
+## 
+
+<a href = "./antibiotics11/simserver/tree/main/HTTP">HTTP</a>
+<a href = "./antibiotics11/simserver/tree/main/DNS">DNS</a>
