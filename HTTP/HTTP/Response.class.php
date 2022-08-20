@@ -4,17 +4,17 @@ namespace HTTP;
 
 class Response implements HTTP {
 
-	private $Request = null;                                     // \HTTP\Request (Object)
+	private ?\HTTP\Request $Request = null;                       // \HTTP\Request (Object)
 
-	private $request_uri_absolute_path = "";                     // Server-side absolute path of requested uri (String)
+	private String $request_uri_absolute_path = "";              // Server-side absolute path of requested uri (String)
 
-	private $document_root_dir = "";                             // Document root directory (String)
+	private String $document_root_dir = "";                      // Document root directory (String)
 
-	private $document_index_files = Array();                     // Document index files (Array)
+	private Array  $document_index_files = Array();              // Document index files (Array)
 
-	private $_STATUS_CODE = "";                                  // Response status code (String)
+	private String $_STATUS_CODE = "";                           // Response status code (String)
 
-	private $_HEADER = array(                                    // Response header (Array)
+	private Array  $_HEADER = array(                             // Response header (Array)
 
 		"Accept-Ranges"             => "bytes",
 		"Content-Encoding"          => "UTF-8",
@@ -31,11 +31,11 @@ class Response implements HTTP {
 
 	);
 
-	private $_RESOURCE = "";                       // Requested resource (String)
+	private String $_RESOURCE = "";
 
-	private $_RESOURCE_TYPE = "";
+	private String $_RESOURCE_TYPE = "";
 
-	private $_HEADER_STREAM = "";
+	private String $_HEADER_STREAM = "";
 
 	private function request_uri_exists(): bool {
 

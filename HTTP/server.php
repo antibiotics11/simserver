@@ -5,7 +5,6 @@ cli_set_process_title("HTTP");
 
 include_once __DIR__."/config.php";
 include_once __DIR__."/HTTP/Socket.class.php";
-include_once __DIR__."/HTTP/IP.class.php";
 include_once __DIR__."/HTTP/HTTP.interface.php";
 include_once __DIR__."/HTTP/Request.class.php";
 include_once __DIR__."/HTTP/Response.class.php";

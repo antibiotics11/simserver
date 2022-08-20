@@ -4,9 +4,9 @@ namespace HTTP;
 
 class Request implements HTTP {
 
-	private $_HEADER = array();
+	private Array $_HEADER = array();
 
-	private $_METHOD = "";
+	private String $_METHOD = "";
 
 	public function __construct(String $received_stream) {
 

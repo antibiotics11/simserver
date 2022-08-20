@@ -22,12 +22,19 @@ Interface HTTP {
 	const TYPE_HTML                   = "text/html";
 	const TYPE_TXT                    = "text/plain";
 	const TYPE_CSS                    = "text/css";
+	const TYPE_SCSS                   = "text/scss";
 	const TYPE_JS                     = "text/javascript";
 	const TYPE_PDF                    = "application/pdf";
 	const TYPE_ZIP                    = "application/zip";
 	const TYPE_JSON                   = "application/json";
+	const TYPE_EOT                    = "application/vnd.ms-fontobject";
+	const TYPE_TTF                    = "application/font-sfnt";
+	const TYPE_WOFF                   = "application/font-woff";
+	const TYPE_WOFF2                  = "application/font-woff2";
 	const TYPE_JPG                    = "image/jpg";
 	const TYPE_JPEG                   = "image/jpeg";
 	const TYPE_PNG                    = "image/png";
+	const TYPE_SVG                    = "image/svg+xml";
+	const TYPE_GIF                    = "image/gif";
 
 };

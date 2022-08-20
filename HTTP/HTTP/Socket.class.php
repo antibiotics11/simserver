@@ -4,7 +4,7 @@ namespace HTTP;
 
 class Socket {
 
-	private $socket;
+	private ?\Socket $socket = null;
 
 	public function __construct(String $server_name = "", int $listening_port = -1) {
 		
@@ -15,15 +15,55 @@ class Socket {
 
 	}
 
+	public static function is_ipv4(string $address = "127.0.0.1"): bool {
+
+		$address = explode(".", $address);
+
+		if (count($address) != 4) {
+			return false;
+		}
+
+		foreach ($address as $part) {
+			if (!is_numeric($part) || (int)$part > 255 || (int)$part < 0) {
+				return false;
+			}
+		}
+
+		return true;
+
+	}
+
+	public static function is_ipv6(string $address = "::1"): bool {
+
+		$address = explode(":", $address);
+	
+		if (count($address) > 8 || count($address) < 2) {
+			return false;
+		}
+
+		foreach ($address as $part) {
+			if (empty($part)) {
+				$part = "0";
+				continue;
+			}
+			if (!ctype_xdigit($part) || (int)hexdec($part) > 65535 || (int)hexdec($part) < 0) {
+				return false;
+			}
+		}
+
+		return true;
+			
+	}
+
 	public function create(String $server_name, int $listening_port): void {
 
 		try {
 
 			$address = gethostbyname($server_name);
 			$domain = -1;
-			if (\HTTP\IP::is_ipv4($address)) {
+			if (\HTTP\Socket::is_ipv4($address)) {
 				$domain = AF_INET;
-			} else if (\HTTP\IP::is_ipv6($address)) {
+			} else if (\HTTP\Socket::is_ipv6($address)) {
 				$domain = AF_INET6;
 			} else {
 				throw new \Exception("Cannot get IP Address.");
