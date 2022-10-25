@@ -1,12 +1,28 @@
 <?php
 
-// Server Configuration file
+const HOSTS = [
 
-const _CONF = array(
+	[
+		"NAME"       => "127.0.0.1",                   // Server name
+		"PORT"       => 80,                            // Listening port number
+		"ADMIN"      => "root@localhost",              // Admin email address
+		"DOC_ROOT"   => __DIR__."/test",               // Document root directory
+		"DOC_INDEX"  => "index.html, index.htm",       // Document index files (Seperated by comma ",")
+		"LOG"        => __DIR__."/test",               // Log directory
+	],
 
-	"PORT"         => 80,                        // Listening port number
-	"SERVER_NAME"  => "localhost",               // HTTP Server Name
-	"DOC_ROOT"     => __DIR__."/test",           // Web document root directory
-	"DOC_INDEX"    => "index.html, index.htm",   // Web index files
+	[
+		"NAME"       => "127.0.0.2",
+		"PORT"       => 80,
+		"DOC_ROOT"   => __DIR__."/test2",
+		"DOC_INDEX"  => "main.html",
+	],
 
-);
+	[
+		"NAME"       => "::1",
+		"PORT"       => 80,
+		"DOC_ROOT"   => __DIR__."/test",
+		"DOC_INDEX"  => "index.html"
+	]
+
+];

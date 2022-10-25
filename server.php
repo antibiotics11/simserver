@@ -1,55 +1,63 @@
 #!/usr/bin/php
 <?php
 
-cli_set_process_title("HTTP");
-
 include_once __DIR__."/config.php";
+include_once __DIR__."/HTTP/InetAddress.class.php";
 include_once __DIR__."/HTTP/Socket.class.php";
-include_once __DIR__."/HTTP/HTTP.interface.php";
+include_once __DIR__."/HTTP/Server.class.php";
+include_once __DIR__."/HTTP/Status.class.php";
+include_once __DIR__."/HTTP/StaticResource.class.php";
 include_once __DIR__."/HTTP/Request.class.php";
 include_once __DIR__."/HTTP/Response.class.php";
 
-use \HTTP\{Socket, HTTP, Request, Response};
+cli_set_process_title("simserver");
+error_reporting(E_ALL ^ E_NOTICE ^ E_WARNING);
 
-function main(Array $argv = array()): void {
+function main(Array $argv = []): void {
 
-	if (PHP_MAJOR_VERSION < 7 || php_sapi_name() !== "cli") {
-		printf("ERROR: PHP-CLI 7+ or 8+ required.");
-		return;
-	}
-	if (strlen($e = extensions_loaded()) > 0) {
-		printf("ERROR: ".$e." extension not loaded.");
-		return;
+	if (strlen($e = extensions_loaded()) !== 0) {
+		console_log("The ".$e." extension not loaded.", true);
+		terminate(true);
 	}
 
-	$doc_index_files = explode(",", \_CONF["DOC_INDEX"]);
+	foreach (HOSTS as $alias => $host) {
 
-	// Closure function to handle Socket connections
-	$handle = function(\Socket $connection) use ($doc_index_files) {
+		$pid = pcntl_fork();
+		if ($pid === 0) {
+			
+			try {
+				$server = new \HTTP\Server($host);
+				$server->run();
+			} catch (Throwable $e) {
+				console_log("Server Error: ".$e->getMessage(), true);
+			} catch (Exception $e) {
+				console_log("Server Error: ".$e->getMessage(), true);
+			}
 
-		// Read stream from Socket and Create new \HTTP\Request object
-		$received_stream = socket_read($connection, 4096);
-		$request = new Request($received_stream);
+		} else if ($pid === -1) {
+			
+			console_log("Failed to fork child process.", true);
+			terminate(true);
 
-		// Create new \HTTP\Response object and send reponse header through Socket
-		$response = new Response($request, \_CONF["DOC_ROOT"], $doc_index_files);
-		socket_write($connection, $response->get_header_stream());
+		}
 
-		unset($request, $response);
+	}
 
-	};
+}
 
-	// Create new \HTTP\Socket object and start listening
-	$socket = new Socket(\_CONF["SERVER_NAME"], \_CONF["PORT"]);
-	$socket->listen($handle);
-
-	return;
+function console_log(String $expression, bool $is_error = false): void {
+	
+	$color = ($is_error) ? 31 : 32;
+	printf(
+		"\033[1;%dm%s\033[0m\r\n",
+		$color, $expression
+	);
 
 }
 
 function extensions_loaded(): String {
 
-	$extensions = array("sockets", "pcntl");
+	$extensions = ["pcntl", "sockets"];
 	foreach ($extensions as $e) {
 		if (!extension_loaded($e)) {
 			return $e;
@@ -60,5 +68,11 @@ function extensions_loaded(): String {
 
 }
 
-main($_SERVER["argv"]);
+function terminate(bool $with_error = false): void {
 
+	console_log("Terminating execution...", $with_error);
+	exit(0);
+
+}
+
+main($_SERVER["argv"]);

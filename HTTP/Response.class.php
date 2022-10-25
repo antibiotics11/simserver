@@ -1,283 +1,232 @@
 <?php
 
 namespace HTTP;
+use \HTTP\{Request, Status, StaticResource};
 
-class Response implements HTTP {
+class Response {
 
-	private ?\HTTP\Request $Request = null;                       // \HTTP\Request (Object)
+	const PROTOCOL   = "HTTP/1.0";
 
-	private String $request_uri_absolute_path = "";              // Server-side absolute path of requested uri (String)
+	const STATUS_OK                      = 200;
+	//const STATUS_CREATED                 = 201;
+	//const STATUS_ACCEPTED                = 202;
+	//const STATUS_NO_CONTENT              = 204;
+	//const STATUS_MOVED_PERMANENTLY       = 301;
+	//const STATUS_MOVED_TEMPORARILY       = 302;
+	//const STATUS_BAD_REQUEST             = 400;
+	//const STATUS_UNAUTHORIZED            = 401;
+	const STATUS_FORBIDDEN               = 403;
+	const STATUS_NOT_FOUND               = 404;
+	const STATUS_METHOD_NOT_ALLOWED      = 405;
+	//const STATUS_PAYLOAD_TOO_LARGE       = 413;
+	//const STATUS_URI_TOO_LONG            = 404;
+	//const STATUS_INTERNAL_SERVER_ERROR   = 500;
+	//const STATUS_NOT_IMPLEMENTED         = 501;
+	//const STATUS_BAD_GATEWAY             = 502;
+	//const STATUS_SERVICE_UNAVAILABLE     = 503;
 
-	private String $document_root_dir = "";                      // Document root directory (String)
+	private ?Request $request = null;
+	private ?Status  $status = null;
 
-	private Array  $document_index_files = Array();              // Document index files (Array)
+	private Array $header = [
+		"Connection"             => "close",
+		"Pragma"                 => "no-cache",
+		"Server"                 => "simserver",
+		"Accept-Ranges"          => "bytes",
+		"Content-Encoding"       => "UTF-8",
+	];
 
-	private String $_STATUS_CODE = "";                           // Response status code (String)
+	private String $uri_absolute_path = "";
 
-	private Array  $_HEADER = array(                             // Response header (Array)
+	private String $doc_root  = "";
+	private Array  $doc_index = [];
 
-		"Accept-Ranges"             => "bytes",
-		"Content-Encoding"          => "UTF-8",
-		"Vary"                      => "Accept-Encoding",
-		"Server"                    => "simserver/PHP".PHP_VERSION." (".PHP_OS.")",
-		"Cache-Control"             => "no-cache",
-		"Pragma"                    => "no-cache",
-		"Referrer-Policy"           => "no-referrer",
-		"X-Content-Type-Options"    => "nosniff",
-		"X-Frame-Options"           => "DENY",
-		"X-XSS-Protection"          => "1; mode=block",
-		"Strict-Transport-Security" => "max-age=31536000; preload",
-		"Connection"                => "close"
+	private ?StaticResource $resource = null;
 
-	);
+	public static function get_system_time(): String {
+		//return (date("D, d M Y G:i:s T"));
+		return substr(date(DATE_RFC2822), 0, -5).date("T");
+	}
 
-	private String $_RESOURCE = "";
+	private function uri_exists(): bool {
 
-	private String $_RESOURCE_TYPE = "";
-
-	private String $_HEADER_STREAM = "";
-
-	private function request_uri_exists(): bool {
-
-		$exists = (
-			file_exists($this->request_uri_absolute_path) &&
-			strpos($this->request_uri_absolute_path, $this->document_root_dir) !== false
-		);
-
-		return ($exists) ? true : false;
+		return (
+			file_exists($this->uri_absolute_path) &&
+			strpos($this->uri_absolute_path, $this->doc_root) !== false
+		) ? true : false;
 	
 	}
 
-	private function request_uri_accessible(): bool {
+	private function uri_accessible(): bool {
 
-		$readable = (
-			is_readable($this->request_uri_absolute_path)
-		);
-		$writable = (
-			is_writable($this->request_uri_absolute_path)
-		);
-		
-		return ($readable && $writable) ? true : false;
-	
-	}
-
-
-	public function __construct(\HTTP\Request $Request, String $document_root_dir, Array $document_index_files) {
-
-		if ($Request == null) {
-			throw new \Exception("\HTTP\Request cannot be NULL");
+		if (is_readable($this->uri_absolute_path) &&
+			is_writable($this->uri_absolute_path)) {
+			return true;
 		}
-		$this->Request = $Request;
-		$this->set_document_root_dir($document_root_dir);
-		$this->set_document_index_files($document_index_files);
-		$this->set_request_uri_absolute_path($this->Request->get_uri());
+		return false;
 
-		$this->push_header("Date", substr(date(DATE_RFC2822), 0, -5)."GMT");
+	}
 
-		$this->set_status_code();
-		if (strcmp($this->_STATUS_CODE, \HTTP\HTTP::STATUS_OK) === 0) {
-			$this->set_resource();
-		} else {
-			$this->_RESOURCE_TYPE = "text/html; charset=UTF-8";
-			$this->_RESOURCE = "<h1>".$this->_STATUS_CODE."</h1>";
+	public function __construct(Request $request, String $doc_root, Array $doc_index) {
+
+		$this->request = $request;
+
+		$this->set_doc_root($doc_root);
+		$this->set_doc_index($doc_index);
+		$this->set_uri_absolute_path($this->request->get_uri());
+
+		$this->status = new Status();
+		$this->set_status();
+		$this->set_resource();
+
+		$this->complete_header();
+
+	}
+
+	public function set_doc_root(String $doc_root): void {
+		$this->doc_root = $doc_root;
+	}
+
+	public function get_doc_root(): String {
+		return $this->doc_root;
+	}
+
+	public function set_doc_index(Array $doc_index): void {
+
+		if (count($doc_index) === 0) {
+			$doc_index = [ "index.html" ];
 		}
-		$this->set_header_stream();
+		$this->doc_index = $doc_index;
 
 	}
 
-	public function set_document_root_dir(String $document_root_dir): void {
-
-		$this->document_root_dir = realpath($document_root_dir.DIRECTORY_SEPARATOR);
-	
+	public function get_doc_index(): Array {
+		return $this->doc_index;
 	}
 
-	public function get_document_root_dir(): String {
+	public function set_uri_absolute_path(String $uri): void {
 
-		return $this->document_root_dir;
-	
-	}
+		$uri = str_replace("..", "/", $uri);
+		$path = $this->doc_root."/".$uri;
+		$pathinfo = pathinfo($path);
 
-	public function set_document_index_files(Array $document_index_files = array()): void {
+		$dirname = $pathinfo["dirname"];
+		$basename = $pathinfo["basename"];
 
-		$files = (count($document_index_files) === 0) ? array("index.html") : $document_index_files;
-
-		$this->document_index_files = $files;
-	
-	}
-
-	public function get_document_index_files(): Array {
-	
-		return $this->document_index_files;
-	
-	}
-
-	public function set_request_uri_absolute_path(String $request_uri): void {
-
-		$path = $this->document_root_dir.DIRECTORY_SEPARATOR.$request_uri;
-
-		if (strcmp(trim($request_uri), "/") === 0) {
-			for ($i = 0; $i < count($this->document_index_files); $i++) {
-				$path_tmp = $path.trim($this->document_index_files[$i]);
-				if (file_exists($path_tmp)) {
-					$path = $path_tmp;
-					break;
+		if (strcmp(trim($uri), "/") === 0) {
+			for ($i = 0; $i < count($this->doc_index); $i++) {
+				$path_tmp = $path.trim($this->doc_index[$i]);
+				if ($path_tmp = realpath($path_tmp)) {
+					$this->uri_absolute_path = $path_tmp;
+					return;
 				}
 			}
 		}
 
-		$path = str_replace("../", "/", $path);
-		$this->request_uri_absolute_path = realpath($path);
-	
+		$this->uri_absolute_path = $dirname."/".$basename;
+
 	}
 
-	public function get_request_uri_absolute_path(): String {
+	public function get_uri_absolute_path(): String {
+		return $this->uri_absolute_path;
+	}
+
+	public function set_status(): void {
 		
-		return $this->request_uri_absolute_path;
-
-	}
-
-	public function set_status_code(): void {
-
-		$method = "\HTTP\HTTP::METHOD_".strtoupper($this->Request->get_method());
+		$method = "\HTTP\Request::METHOD_".strtoupper(
+			$this->request->get_method()
+		);
 		if (!defined($method)) {
-			$this->_STATUS_CODE = \HTTP\HTTP::STATUS_METHOD_NOT_ALLOWED;
+			$this->status->code = Response::STATUS_METHOD_NOT_ALLOWED;
+			$this->status->message = "Method Not Allowed";
 			return;
 		}
 
-		if ($this->request_uri_exists()) {
-			if (!$this->request_uri_accessible()) {
-				$this->_STATUS_CODE = \HTTP\HTTP::STATUS_FORBIDDEN;
+		if ($this->uri_exists()) {
+			if (!$this->uri_accessible()) {
+				$this->status->code = Response::STATUS_FORBIDDEN;
+				$this->status->message = "Forbidden";
 				return;
 			}
 		} else {
-			$this->_STATUS_CODE = \HTTP\HTTP::STATUS_NOT_FOUND;
+			$this->status->code = Response::STATUS_NOT_FOUND;
+			$this->status->message = "Not Found";
 			return;
 		}
-		
-		$this->_STATUS_CODE = \HTTP\HTTP::STATUS_OK;
-		
+
+		$this->status->code = Response::STATUS_OK;
+		$this->status->message = "OK";
+
 	}
 
-	public function get_status_code(): String {
-	
-		return $this->status_code;
-
+	public function get_status(): Status {
+		return $this->status;
 	}
 
 	public function set_resource(): void {
 
-		$method = $this->Request->get_method();
-		$_RESOURCE = "";
+		$method = $this->request->get_method();
+		$this->resource = new StaticResource();
+
+		if ($this->status->code !== Response::STATUS_OK) {
+			$this->resource->set_resource(Status::page($this->status));
+			$this->resource->set_type("HTML");
+			return;
+		}
 
 		switch (strtoupper(trim($method))) {
 
-		case (\HTTP\HTTP::METHOD_GET):
-			$_RESOURCE = $this->get();
+		case (Request::METHOD_GET) :
+			$this->resource->new_resource($this->uri_absolute_path);
+			break;
+
+		case (Request::METHOD_HEAD) : 
+			break;
+
+		case (Request::METHOD_POST) :
 			break;
 		
-		case (\HTTP\HTTP::METHOD_DELETE):
-			$_RESOURCE = $this->delete();
-			break;
-
 		};
 
-		$extension = pathinfo($this->request_uri_absolute_path)["extension"];
-		$this->_RESOURCE_TYPE = constant("\HTTP\HTTP::TYPE_".strtoupper($extension));
-		$this->_RESOURCE = $_RESOURCE;
-	
 	}
 
 	public function get_resource(): String {
-	
-		return $this->_RESOURCE;
-
+		return $this->resource;
 	}
 
-	public function get_resource_type(): String {
-	
-		return $this->_RESOURCE_TYPE;
-	
+	public function push_header(String $index, String $value): void {
+		$this->header[strtoupper($index)] = $value;
 	}
 
-	public function set_header_stream(): void {
+	public function pop_header(String $index): bool {
 
-		$_HEADER_STREAM = "";
-		$_EOL = chr(0x0d).chr(0x0a);
-
-		$this->push_header("Content-Type", $this->_RESOURCE_TYPE."; UTF-8");
-		$this->push_header("Content-Length", strlen($this->_RESOURCE));
-
-		$_HEADER_STREAM .= \HTTP\HTTP::PROTOCOL.chr(0x20).$this->_STATUS_CODE.$_EOL;
-		foreach ($this->_HEADER as $key => $value) {
-			$_HEADER_STREAM .= $key.chr(0x3a).chr(0x20).$value.$_EOL;
-		}
-		$_HEADER_STREAM .= $_EOL;
-		$_HEADER_STREAM .= $this->_RESOURCE;
-
-		$this->_HEADER_STREAM = $_HEADER_STREAM;
-
-	}
-
-	public function get_header_stream(): String {
-
-		return $this->_HEADER_STREAM;
-	
-	}
-
-	public function push_header(String $key, String $value): void {
-	
-		$this->_HEADER[strtolower(trim($key))] = trim($value);
-	
-	}
-
-	public function pop_header(String $key): bool {
-	
-		if (array_key_exists($this->_HEADER, trim($key))) {
-			unset($this->_HEADER[$key]);
+		$index = strtoupper(trim($index));
+		if (array_key_exists($this->header, $index)) {
+			unset($this->header[$index]);
 			return true;
 		}
-
 		return false;
-	
 	}
 
-	public function set_header(Array $header): void {
-	
-		$this->_HEADER = $header;
+	public function complete_header(): String {
 
-	}
+		$header = "";
+		$eol = "\r\n";
+		$resource = $this->resource->get_resource();
 
-	public function get_header(): Array {
+		$this->push_header("Date", $this->get_system_time());
+		$this->push_header("Content-Type", $this->resource->get_type());
+		$this->push_header("Content-Length", strlen($resource));
 
-		return $this->_HEADER;
-
-	}
-
-
-	/** HTTP Method GET */
-	private function get(): String {
-
-		$resource = file_get_contents($this->request_uri_absolute_path);
-
-		return $resource;
-
-	}
-
-
-	/** HTTP Method DELETE */
-	private function delete(): String {
-
-		$success = "False";
-
-		if (is_dir($this->request_uri_absolute_path)) {
-			$success = rmdir($this->request_uri_absolute_path) ? "True" : "False";
+		$header .= Response::PROTOCOL." ".$this->status->code." ".$eol;
+		foreach ($this->header as $index => $value) {
+			$header .= $index.": ".$value.$eol;
 		}
-		if (is_file($this->request_uri_absolute_path)) {
-			$success = unlink($this->request_uri_absolute_path) ? "True" : "False";
-		}
+		$header .= $eol;
+		$header .= $resource;
 
-		return $success;
-
+		return $header;
+	
 	}
 
 };

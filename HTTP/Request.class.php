@@ -2,90 +2,80 @@
 
 namespace HTTP;
 
-class Request implements HTTP {
+class Request {
 
-	private Array $_HEADER = array();
+	const METHOD_GET    = "GET";
+	const METHOD_POST   = "POST";
+	const METHOD_HEAD   = "HEAD";
 
-	private String $_METHOD = "";
+	private Array $header = [];
 
-	public function __construct(String $received_stream) {
-
-		$this->parse_received_stream($received_stream);
-
+	public function __construct(String $stream = "") {
+		if (strlen($stream) !== 0) {
+			$this->parse_stream($stream);
+		}
 	}
 
-	public function parse_received_stream(String $received_stream): void {
+	public function parse_stream(String $stream): void {
+		
+		$lines = explode("\n", $stream);
+		$line = [];
+		$header = [];
 
-		$stream_lines = explode("\n", $received_stream);
-		$line = array();
-		$_HEADER = array();
-
-		for ($i = 0; $i < count($stream_lines); $i++) {
+		for ($i = 0; $i < count($lines); $i++) {
 
 			if ($i == 0) {
-				$line = explode(" ", $stream_lines[$i]);
-				$_HEADER["METHOD"] = $line[0];
-				$_HEADER["URI"] = $line[1];
-				$_HEADER["PROTOCOL"] = $line[2];
+				$line = explode(" ", $lines[$i]);
+				$header["METHOD"] = $line[0];
+				$header["URI"] = $line[1];
+				$header["PROTOCOL"] = $line[2];
 			} else {
-				$line = explode(":", $stream_lines[$i]);
+				$line = explode(":", $lines[$i]);
 				if (!isset($line[1])) {
 					continue;
 				}
 				if (strlen($line[1]) <= 0) {
 					continue;
 				}
-				$_HEADER[$line[0]] = $line[1];
+				$line[0] = strtoupper(trim($line[0]));
+				$line[1] = trim($line[1]);
+				$header[$line[0]] = $line[1];
 			}
-
+		
 		}
 
-		$this->_HEADER = $_HEADER;
+		$this->header = $header;
 
 	}
 
-	public function get_header(): array {
-
-		return $this->_HEADER;
-	
+	public function get_header(): Array {
+		return $this->header;
 	}
-	
+
 	public function get_protocol(): String {
-
-		return $this->_HEADER["PROTOCOL"];
-	
+		return $this->header["PROTOCOL"];
 	}
 
 	public function get_method(): String {
-	
-		return $this->_HEADER["METHOD"];
-
+		return $this->header["METHOD"];
 	}
 
 	public function get_uri(): String {
-
-		return $this->_HEADER["URI"];
-
+		return $this->header["URI"];
 	}
 
 	public function get_host(): String {
-
-		return $this->_HEADER["Host"];
-	
+		return $this->header["HOST"];
 	}
 
 	public function get_user_agent(): String {
-
-		$user_agent = &$this->_HEADER["User-Agent"];
-		return (isset($user_agent)) ? $this->_HEADER["User-Agent"] : "";
-	
+		$agent = &$this->header["USER-AGENT"];
+		return (isset($agent)) ? $agent : ""; 
 	}
 
 	public function get_accept_language(): String {
-
-		$accpet_language = &$this->_HEADER["Accept-Language"];
-		return (isset($accpet_language)) ? $this->_HEADER["Accept-Language"] : "";
-	
+		$lang = &$this->header["ACCEPT-LANGUAGE"];
+		return (isset($lang)) ? $lang : "";
 	}
 
 };

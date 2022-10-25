@@ -1,101 +1,72 @@
 <?php
 
 namespace HTTP;
+use \HTTP\InetAddress;
 
 class Socket {
 
-	private ?\Socket $socket = null;
-
-	public function __construct(String $server_name = "", int $listening_port = -1) {
-		
-		$this->socket = null;
-		if ((strlen($server_name) > 0) && ($listening_port != -1 )) {
-			$this->create($server_name, $listening_port);
-		}
-
-	}
-
-	public static function is_ipv4(string $address = "127.0.0.1"): bool {
-
-		$address = explode(".", $address);
-
-		if (count($address) != 4) {
-			return false;
-		}
-
-		foreach ($address as $part) {
-			if (!is_numeric($part) || (int)$part > 255 || (int)$part < 0) {
-				return false;
-			}
-		}
-
-		return true;
-
-	}
-
-	public static function is_ipv6(string $address = "::1"): bool {
-
-		$address = explode(":", $address);
+	private ?\Socket $http_socket = null;
 	
-		if (count($address) > 8 || count($address) < 2) {
-			return false;
-		}
+	private ?InetAddress $address = null;
+	private int $port = -1;
 
-		foreach ($address as $part) {
-			if (empty($part)) {
-				$part = "0";
-				continue;
-			}
-			if (!ctype_xdigit($part) || (int)hexdec($part) > 65535 || (int)hexdec($part) < 0) {
-				return false;
-			}
-		}
-
-		return true;
-			
+	public static function is_valid_port(int $port): bool {
+		return ($port >= 1 && $port <= 65535) ? true : false;
 	}
 
-	public function create(String $server_name, int $listening_port): void {
+	public function create(InetAddress $address, int $port): void {
 
-		try {
-
-			$address = gethostbyname($server_name);
-			$domain = -1;
-			if (\HTTP\Socket::is_ipv4($address)) {
-				$domain = AF_INET;
-			} else if (\HTTP\Socket::is_ipv6($address)) {
-				$domain = AF_INET6;
-			} else {
-				throw new \Exception("Cannot get IP Address.");
-			}
-
-			$this->socket = socket_create($domain, SOCK_STREAM, SOL_TCP);
-			socket_bind($this->socket, $server_name, $listening_port);
-		
-		} catch (\Exception $e) {
-			throw new \Exception("Socket Error: ".$e);
+		$this->address = $address;
+		if (Socket::is_valid_port($port)) {
+			$this->port = $port;
+		} else {
+			throw new \Exception("Invalid port number \"".$port."\"");
 		}
 
+		$domain = $this->address->get_version();
+		$type = \SOCK_STREAM;
+		$protocol = \SOL_TCP;
+
+		$this->http_socket = socket_create($domain, $type, $protocol);
+		if ($e = socket_last_error()) {
+			throw new \Exception(
+				"Failed to create socket: "
+				.socket_strerror($e)
+			);
+		}
+
+		socket_bind($this->http_socket, $address->get_address(), $this->port);
+		if ($e = socket_last_error()) {
+			throw new \Exception(
+				"Failed to bind to socket:"
+				.socket_strerror($e)
+			);
+		}
+	
 	}
 
 	public function listen(\Closure $process): void {
-		
-		if ($this->socket == null) {
-			throw new \Exception("Socket Error: Socket is null.");
+	
+		if ($this->http_socket == null) {
+			throw new \Exception("Socket is not set.");
 		}
 		
-		socket_listen($this->socket);
-		pcntl_signal(SIGCHLD, SIG_IGN);
-		
-		while ($connection = socket_accept($this->socket)) {
-			
+		socket_listen($this->http_socket);
+		while ($connection = socket_accept($this->http_socket)) {
+
 			$pid = pcntl_fork();
-			if ($pid == -1) {
-				throw new \Exception("Failed to create child process.");
-			} else if ($pid == 0) {
-				$process($connection);
-				socket_close($connection);
+			if ($pid === -1) {
+				throw new \Exception("Failed to fork child process");
+			} else if ($pid === 0) {
+
+				$stream = socket_read($connection, 4096);
+				$stream = $process($stream);
+
+				socket_write($connection, $stream);
+				
 			}
+
+			socket_close($connection);
 
 		}
 

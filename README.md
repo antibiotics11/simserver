@@ -6,10 +6,11 @@ It requires PHP-CLI 8+ with <a href = "https://www.php.net/manual/en/book.pcntl.
 PHP로 작성된 HTTP/1.0 서버입니다. <br>
 <a href = "http://docs.php.net/manual/kr/book.pcntl.php">pcntl 확장</a>이 설치된 PHP 8+이 필요합니다.
 
-## Supported Methods
+## Supported HTTP/1.0 Methods
 
 - <a href = "https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/GET"> GET </a>
-- <a href = "https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE"> DELETE </a>
+- <a href = "https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD"> HEAD </a>
+- <a href = "https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST"> POST </a>
 
 ## run
 ```
