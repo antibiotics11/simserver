@@ -10,15 +10,15 @@ class Request {
 
 	private Array $header = [];
 
-	public function __construct(String $stream = "") {
-		if (strlen($stream) !== 0) {
-			$this->parse_stream($stream);
+	public function __construct(String $request = "") {
+		if (strlen($request) !== 0) {
+			$this->parse($request);
 		}
 	}
 
-	public function parse_stream(String $stream): void {
+	public function parse(String $request): Array {
 		
-		$lines = explode("\n", $stream);
+		$lines = explode("\n", $request);
 		$line = [];
 		$header = [];
 
@@ -38,13 +38,14 @@ class Request {
 					continue;
 				}
 				$line[0] = strtoupper(trim($line[0]));
-				$line[1] = trim($line[1]);
-				$header[$line[0]] = $line[1];
+				$header[$line[0]] = trim($line[1]);
 			}
 		
 		}
 
 		$this->header = $header;
+		
+		return $this->header;
 
 	}
 

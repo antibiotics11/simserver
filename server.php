@@ -9,6 +9,7 @@ include_once __DIR__."/HTTP/Status.class.php";
 include_once __DIR__."/HTTP/StaticResource.class.php";
 include_once __DIR__."/HTTP/Request.class.php";
 include_once __DIR__."/HTTP/Response.class.php";
+include_once __DIR__."/HTTP/Logger.class.php";
 
 cli_set_process_title("simserver");
 error_reporting(E_ALL ^ E_NOTICE ^ E_WARNING);
@@ -30,8 +31,6 @@ function main(Array $argv = []): void {
 				$server->run();
 			} catch (Throwable $e) {
 				console_log("Server Error: ".$e->getMessage(), true);
-			} catch (Exception $e) {
-				console_log("Server Error: ".$e->getMessage(), true);
 			}
 
 		} else if ($pid === -1) {
@@ -45,13 +44,10 @@ function main(Array $argv = []): void {
 
 }
 
-function console_log(String $expression, bool $is_error = false): void {
+function console_log(String $expression, bool $with_error = false): void {
 	
-	$color = ($is_error) ? 31 : 32;
-	printf(
-		"\033[1;%dm%s\033[0m\r\n",
-		$color, $expression
-	);
+	$color = ($with_error) ? 31 : 32;
+	printf("\033[1;%dm%s\033[0m\r\n", $color, $expression);
 
 }
 

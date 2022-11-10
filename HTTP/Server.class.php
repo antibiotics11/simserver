@@ -1,24 +1,21 @@
 <?php
 
 namespace HTTP;
-use \HTTP\{InetAddress, Socket};
-use \HTTP\{Status, StaticResource};
-use \HTTP\{Request, Response};
 
 class Server {
 
 	private ?InetAddress $address = null;
-	private String $name = "";
-	private int    $port = -1;
+	private String       $name = "";
+	private int          $port = -1;
 
-	private String $admin = "";
+	private String       $admin = "";
 
-	private String $doc_root = "";
-	private Array  $doc_index = [];
+	private String       $doc_root = __DIR__;
+	private Array        $doc_index = [ "index.html" ];
 
-	private String $log = "";
+	private String       $log_dir = "";
 
-	private function parse_array(Array $host): void {
+	private function parse_config_array(Array $host): void {
 	
 		foreach ($host as $index => $value) {
 			
@@ -30,8 +27,8 @@ class Server {
 				$addr = gethostbyname($value);
 				try {
 					$this->address = new InetAddress($addr);
-				} catch (\Exception $e) {
-					throw new \Exception($e);
+				} catch (\Throwable $e) {
+					throw new \Exception($e->getMessage());
 				}
 				break;
 
@@ -41,20 +38,26 @@ class Server {
 						"Invalid port number \"".$value."\""
 					);
 				}
-				$this->port = $value; break;
+				$this->port = $value; 
+				break;
 
 			case "admin" : 
-				$this->admin = $value; break;
+				$this->admin = $value; 
+				break;
 
 			case "doc_root" :
-				$this->doc_root = $value; break;
+				$this->doc_root = $value; 
+				break;
 
 			case "doc_index" :
 				$this->doc_index = explode(",", $value);
 				break;
 
-			case "log" :
-				$this->log = $value; break;
+			case "log_dir" :
+				if (realpath($this->log_dir)) {
+					$this->log_dir = $value;
+				}
+				break;
 			
 			}
 
@@ -63,7 +66,7 @@ class Server {
 	}
 
 	public function __construct(Array $host) {
-		$this->parse_array($host);
+		$this->parse_config_array($host);
 	}
 
 	public function run(): void {
@@ -71,16 +74,30 @@ class Server {
 		$socket = new Socket();
 
 		$socket->create($this->address, $this->port);
-		$socket->listen(function($stream) {
+		$socket->listen(function(String $request, String $ip) {
 
-			$request = new Request($stream);
+			$request = new Request($request);
+			
 			$response = new Response(
 				$request, 
 				$this->doc_root, 
 				$this->doc_index
 			);
+			
+			Logger::write_log(
+				$this->log_dir,
+				trim($ip)." - "
+				."\""
+				.trim($request->get_method())." "
+				.trim($request->get_uri())." "
+				.trim($request->get_protocol())
+				."\" "
+				.$response->get_status()->code
+			);
 					
-			return $response->complete_header();
+			$response = $response->complete_header();
+			
+			return $response;
 
 		});
 

@@ -1,7 +1,6 @@
 <?php
 
 namespace HTTP;
-use \HTTP\{Request, Status, StaticResource};
 
 class Response {
 

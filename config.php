@@ -8,7 +8,7 @@ const HOSTS = [
 		"ADMIN"      => "root@localhost",              // Admin email address
 		"DOC_ROOT"   => __DIR__."/test",               // Document root directory
 		"DOC_INDEX"  => "index.html, index.htm",       // Document index files (Seperated by comma ",")
-		"LOG"        => __DIR__."/test",               // Log directory
+		"LOG_DIR"    => __DIR__."/test",               // Log directory
 	],
 
 	[
@@ -22,7 +22,8 @@ const HOSTS = [
 		"NAME"       => "::1",
 		"PORT"       => 80,
 		"DOC_ROOT"   => __DIR__."/test",
-		"DOC_INDEX"  => "index.html"
+		"DOC_INDEX"  => "index.html",
+		"LOG_DIR"    => __DIR__."/test"
 	]
 
 ];

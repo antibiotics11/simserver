@@ -1,14 +1,13 @@
 <?php
 
 namespace HTTP;
-use \HTTP\InetAddress;
 
 class Socket {
 
-	private ?\Socket $http_socket = null;
+	private ?\Socket     $http_socket = null;
 	
 	private ?InetAddress $address = null;
-	private int $port = -1;
+	private int          $port = -1;
 
 	public static function is_valid_port(int $port): bool {
 		return ($port >= 1 && $port <= 65535) ? true : false;
@@ -38,7 +37,7 @@ class Socket {
 		socket_bind($this->http_socket, $address->get_address(), $this->port);
 		if ($e = socket_last_error()) {
 			throw new \Exception(
-				"Failed to bind to socket:"
+				"Failed to bind to socket: "
 				.socket_strerror($e)
 			);
 		}
@@ -53,18 +52,14 @@ class Socket {
 		
 		socket_listen($this->http_socket);
 		while ($connection = socket_accept($this->http_socket)) {
+		
+			socket_getpeername($connection, $ip, $port);
 
-			$pid = pcntl_fork();
-			if ($pid === -1) {
-				throw new \Exception("Failed to fork child process");
-			} else if ($pid === 0) {
+			$request = socket_read($connection, 4096);
+			
+			$response = $process($request, $ip);
 
-				$stream = socket_read($connection, 4096);
-				$stream = $process($stream);
-
-				socket_write($connection, $stream);
-				
-			}
+			socket_write($connection, $response);
 
 			socket_close($connection);
 

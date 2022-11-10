@@ -5,7 +5,7 @@ namespace HTTP;
 class InetAddress {
 
 	private String $address;
-	private int $version = \AF_INET;                       // Address version: 2 => IPv4, 10 => IPv6
+	private int $version = \AF_INET;
 
 	public function __construct(String $address) {
 
