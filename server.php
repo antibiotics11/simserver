@@ -1,59 +1,53 @@
 #!/usr/bin/php
 <?php
 
-include_once __DIR__."/config.php";
 include_once __DIR__."/HTTP/InetAddress.class.php";
-include_once __DIR__."/HTTP/Socket.class.php";
-include_once __DIR__."/HTTP/Server.class.php";
+include_once __DIR__."/HTTP/SocketServer.class.php";
+include_once __DIR__."/HTTP/Message.class.php";
 include_once __DIR__."/HTTP/Status.class.php";
-include_once __DIR__."/HTTP/StaticResource.class.php";
 include_once __DIR__."/HTTP/Request.class.php";
 include_once __DIR__."/HTTP/Response.class.php";
+include_once __DIR__."/HTTP/StaticResource.class.php";
 include_once __DIR__."/HTTP/Logger.class.php";
+include_once __DIR__."/HTTP/SocketIOException.class.php";
+
 
 cli_set_process_title("simserver");
 error_reporting(E_ALL ^ E_NOTICE ^ E_WARNING);
 
-function main(Array $argv = []): void {
-
-	if (strlen($e = extensions_loaded()) !== 0) {
-		console_log("The ".$e." extension not loaded.", true);
-		terminate(true);
-	}
-
-	foreach (HOSTS as $alias => $host) {
-
-		$pid = pcntl_fork();
-		if ($pid === 0) {
-			
-			try {
-				$server = new \HTTP\Server($host);
-				$server->run();
-			} catch (Throwable $e) {
-				console_log("Server Error: ".$e->getMessage(), true);
-			}
-
-		} else if ($pid === -1) {
-			
-			console_log("Failed to fork child process.", true);
-			terminate(true);
-
-		}
-
-	}
-
+if (PHP_MAJOR_VERSION < 8) {
+	\HTTP\Logger::printLog("PHP 8.0 or higher is required.", true);
+	exit(0);
 }
 
-function console_log(String $expression, bool $with_error = false): void {
+if (strlen($e = extensionsAllLoaded()) !== 0) {
+	\HTTP\Logger::printLog($e." extension not loaded.", true);
+	exit(0);
+}
 	
-	$color = ($with_error) ? 31 : 32;
-	printf("\033[1;%dm%s\033[0m\r\n", $color, $expression);
+$config = trim(file_get_contents("config.json"));
 
+try {
+	$socketServer = new \HTTP\SocketServer($config);
+	
+	\HTTP\Logger::printLog(
+		"Starting server at "
+		.$socketServer->getServerName()->getAddress().":"
+		.$socketServer->getListeningPort().".",
+		false
+	);
+		
+	$socketServer->listen();
+
+} catch (Throwable $e) {
+	\HTTP\Logger::printLog("Internal Server Error: ".$e->getMessage(), true);
+} catch (\HTTP\SocketIOException $e) {
+	\HTTP\Logger::printLog("Socket IO Error: ".$e->getMessage(), true);
 }
 
-function extensions_loaded(): String {
-
-	$extensions = ["pcntl", "sockets"];
+function extensionsAllLoaded(): String {
+	
+	$extensions = [ "sockets", "pcntl" ];
 	foreach ($extensions as $e) {
 		if (!extension_loaded($e)) {
 			return $e;
@@ -63,12 +57,3 @@ function extensions_loaded(): String {
 	return "";
 
 }
-
-function terminate(bool $with_error = false): void {
-
-	console_log("Terminating execution...", $with_error);
-	exit(0);
-
-}
-
-main($_SERVER["argv"]);
