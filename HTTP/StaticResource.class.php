@@ -62,6 +62,11 @@ class StaticResource {
 	
 	}
 	
+	public static function getResourceLastModifiedTime(String $path): String {
+	
+		return substr(date(DATE_RFC2822, filemtime($path)), 0, -5).date("T");
+	
+	}
 	
 	public static function resourceExists(String $path): bool {
 	

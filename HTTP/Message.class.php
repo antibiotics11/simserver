@@ -44,13 +44,8 @@ class Message {
 			$message->status = new Status(Status::STATUS_BAD_REQUEST);
 		}
 		
-		$method = $startLine[0];
-		if ($method != "GET" && $method != "POST" && $method != "HEAD") {
-			$message->status = new Status(Status::STATUS_NOT_IMPLEMENTED);
-		}
-		$message->method    = strtoupper($method);
-		
 		$message->request   = true;
+		$message->method    = strtoupper($startLine[0]) ?? "GET";
 		$message->path      = trim($startLine[1]) ?? "";
 		$message->protocol  = $startLine[2] ?? Message::PROTOCOL;
 		
@@ -110,6 +105,12 @@ class Message {
 		}
 
 		return $packet;
+	
+	}
+	
+	public static function isImplementedMethod(String $method): bool {
+	
+		return ($method == "GET" || $method == "HEAD" || $method == "POST");
 	
 	}
 	

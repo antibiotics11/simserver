@@ -1,9 +1,9 @@
 # simserver
 
-HTTP Server implementation in PHP.
+HTTP/1.0 Server implementation in PHP.
 PHP 8 or higher version is required.
 
-PHP로 구현한 HTTP 서버입니다.
+PHP로 구현한 HTTP/1.0 서버입니다.
 PHP 8 또는 상위 버전이 필요합니다.
 
 ## run

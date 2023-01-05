@@ -100,12 +100,15 @@ class SocketServer {
 			try {
 			
 				$request  = new Request($requestPacket);
-				$response = new Response($request);
+				$response = new Response($request, [
+					"document_root" => $this->documentRoot, 
+					"document_index" => $this->documentIndex 
+				]);
 				$message  = $response->getMessage();
 				
 			} catch (\Throwable $e) {
-			
-				Logger::writeLog($this->log, $e->getMessage());
+			 
+				Logger::writeLog($this->log, "Internal Server Error: ".$e->getMessage());
 				
 				$status   = new Status(Status::STATUS_INTERNAL_SERVER_ERROR);
 				$message  = Message::createResponseStatusMessage($status);
@@ -118,9 +121,12 @@ class SocketServer {
 				throw new SocketIOException(socket_last_error());
 			}
 			
-			if (is_dir($this->log) && is_writable($this->log)) {
-				//Logger::writeLog($this->log, 
-			}
+			Logger::writeLog($this->log, $remoteIp." - \""
+				.$request->getMessage()->method." "
+				.$request->getMessage()->path." "
+				.$request->getMessage()->protocol."\" "
+				.$message->status->code." ".$message->header[Message::HEADER_CONTENT_LENGTH]
+			);
 			
 			socket_close($connection);
 		

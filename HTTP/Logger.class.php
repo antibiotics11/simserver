@@ -4,7 +4,7 @@ namespace HTTP;
 
 class Logger {
 
-	const BUFFER_SIZE = 5;
+	const BUFFER_SIZE = 10;
 
 	public static Array $logBuffer = [];
 	
@@ -33,6 +33,7 @@ class Logger {
 		
 		$file .= DIRECTORY_SEPARATOR.date("Y.m.d").".log";
 		$contents = implode("\r\n", Logger::$logBuffer);
+		$contents .= "\r\n";
 		
 		$handle = fopen($file, "a");
 		fwrite($handle, $contents);
