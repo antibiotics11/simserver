@@ -1,13 +1,15 @@
 # simserver
 
-HTTP/1.0 Server implementation in PHP.
-PHP 8 or higher version is required.
-
-PHP로 구현한 HTTP/1.0 서버입니다.
-PHP 8 또는 상위 버전이 필요합니다.
-
-## run
+HTTP/1.0 server in PHP.
 
 ```
-$ sudo php server.php
+sudo php -f server.php
 ```
+
+## Server Configuration
+
+
+
+## Reference
+
+<a href = "https://www.rfc-editor.org/rfc/rfc1945#section-7.1">RFC 1945: Hypertext Transfer Protocol -- HTTP/1.0</a>

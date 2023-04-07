@@ -1,9 +1,0 @@
-{
-	"ServerName": "127.0.0.1",
-	"ListeningPort": "80",
-	
-	"DocumentRoot": ".\/test",
-	"DocumentIndex": ["index.html","index.htm"],
-	
-	"Log": ".\/log"
-}
