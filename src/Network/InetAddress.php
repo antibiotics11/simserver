@@ -13,7 +13,7 @@ class InetAddress {
 		}
 	}
 
-	public function setNewAddress(String $address): void {
+	public function setNewAddress(String $address): bool {
 
 		$address = strtolower(trim($address));
 		if (self::isIpv4($address)) {
@@ -21,10 +21,11 @@ class InetAddress {
 		} else if (self::isIpv6($address)) {
 			$this->family = AF_INET6;
 		} else {
-			throw new \InvalidArgumentException();
+			return false;
 		}
 
 		$this->address = $address;
+		return true;
 
 	}
 
