@@ -8,8 +8,7 @@ class HeaderField {
    * General Header Fields
    */
   public const HEADER_DATE               = "Date";
-  public const HEADER_PRAGAMA            = "Pragma";
-  public const HEADER_MIME_VERSION       = "MIME-version";
+  public const HEADER_PRAGMA             = "Pragma";
 
   /**
    * Entity Header Fields
@@ -31,7 +30,7 @@ class HeaderField {
   public const HEADER_FROM               = "From";
   public const HEADER_IF_MODIFIED_SINCE  = "If-Modified-Since";
   public const HEADER_REFERER            = "Referer";
-	public const HEADER_USER_AGENT         = "User-Agent";
+  public const HEADER_USER_AGENT         = "User-Agent";
   public const HEADER_ACCEPT             = "Accept";
   public const HEADER_ACCEPT_CHARSET     = "Accept-Charset";
   public const HEADER_ACCEPT_ENCODING    = "Accept-Encoding";
