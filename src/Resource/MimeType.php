@@ -80,6 +80,11 @@ class MimeType {
 	public const TYPE_3G2    = "video/2gpp2";
 	public const TYPE_7Z     = "application/x-7z-compressed";
 
+	public const TYPE_HWP    = "application/vnd.hancom.hwp";
+	public const TYPE_HWPX   = "application/vnd.hancom.hwpx";
+	public const TYPE_ALZ    = "application/zip";
+	public const TYPE_EGG    = "application/zip";
+
 	public static function fromName(String $name): String {
 		try {
 			return constant(sprintf("self::TYPE_%s", strtoupper(trim($name))));
