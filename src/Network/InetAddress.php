@@ -4,19 +4,13 @@ namespace simserver\Network;
 
 class InetAddress {
 
-	public const IP4_LOOPBACK_ADDRESS = "127.0.0.1";
-	public const IP6_LOOPBACK_ADDRESS = "::1";
-
 	private String  $address;
 	private int     $family;
 
 	public function __construct(String $address = "") {
-
-		if (strlen($address) == 0) {
-			$address = self::IP4_LOOPBACK_ADDRESS;
+		if (strlen($address) != 0) {
+			$this->setNewAddress($address);
 		}
-		$this->setNewAddress($address);
-
 	}
 
 	public function setNewAddress(String $address): void {
@@ -43,15 +37,11 @@ class InetAddress {
 	}
 
 	public static function isIpv4(String $address): bool {
-		return (
-			filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
-		) ? true : false;
+		return filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
 	}
 
 	public static function isIpv6(String $address): bool {
-		return (
-			filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)
-		) ? true : false;
+		return filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6);
 	}
 
 };
