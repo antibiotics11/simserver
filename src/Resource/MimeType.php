@@ -85,12 +85,49 @@ class MimeType {
 	public const TYPE_ALZ    = "application/zip";
 	public const TYPE_EGG    = "application/zip";
 
-	public static function fromName(String $name): String {
-		try {
-			return constant(sprintf("self::TYPE_%s", strtoupper(trim($name))));
-		} catch (\Throwable $e) {
-			return self::TYPE_TXT;
+
+	private static ?\ReflectionClass $reflector    = null;
+	private static Array             $typeConstants = [];
+
+	public static function resetReflector(): void {
+		self::$reflector = new \ReflectionClass(self::class);
+	}
+
+	public static function resetTypeConstants(): void {
+		if (self::$reflector === null) {
+			self::resetReflector();
 		}
+		self::$typeConstants = self::$reflector->getConstants();
+	}
+
+	public static function fromName(String $typeName): String {
+
+		if (count(self::$typeConstants) == 0) {
+			self::resetTypeConstants();
+		}
+
+		$typeName = strtoupper(trim($typeName));
+		$constantName = sprintf("TYPE_%s", $typeName);
+		return self::$typeConstants[$constantName] ?? "";
+
+	}
+
+	public static function fromValue(String $typeValue): Array {
+
+		if (count(self::$typeConstants) == 0) {
+			self::resetTypeConstants();
+		}
+
+		$typeValue = strtolower(trim($typeValue));
+		$constantName = [];
+		foreach (self::$typeConstants as $name => $value) {
+			if (strcmp($typeValue, $value) === 0) {
+				$constantName[] = $name;
+			}
+		}
+
+		return $constantName;
+
 	}
 
 };
