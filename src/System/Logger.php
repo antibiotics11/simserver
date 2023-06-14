@@ -4,93 +4,111 @@ namespace simserver\System;
 
 class Logger {
 
-  private String $directory;
+  private const LOG_BUFFER_MAX_SIZE  = 1000;
+  private const LOG_ENTRY_MAX_LENGTH = 512;
 
-  private Array $logBuffer;
-  private int   $logBufferSize;
+	private String $directory;
 
-  private function resetLogBuffer(): void {
-    $this->logBuffer = [];
+	private Array  $buffer;
+	private int    $bufferSize;
+
+  private bool   $printToConsole;
+
+  private function getLogFilePath(): String {
+
+    $filename = sprintf("%s.log", Time::DateYMD());
+    $path = sprintf("%s/%s", $this->directory, $filename);
+
+    return $path;
+
   }
 
-  public function __construct(int $logBufferSize = 100, String $directory = "log/") {
-    $this->resetLogBuffer();
-    $this->setLogBufferSize($logBufferSize);
-    $this->setDirectory($directory);
+	public function __construct(
+    String $directory, bool $createDirectory = true,
+    bool $printToConsole = true,
+    int $bufferSize = self::LOG_BUFFER_MAX_SIZE
+  ) {
+
+    $this->setDirectory($directory, $createDirectory);
+		$this->resetBuffer();
+		$this->setBufferSize($bufferSize);
+    $this->printToConsole = $printToConsole;
+
+	}
+
+  public function resetBuffer(): void {
+    $this->buffer = [];
   }
 
-  public function setDirectory(String $directory): void {
+  public function setDirectory(String $directory, bool $createDirectory = true): void {
 
-    $directoryAbsolutePath = realpath($directory);
-    if ($directoryAbsolutePath === false) {
-      $created = mkdir($directory, 0777);
-      if (!$created) {
-        throw new \InvalidArgumentException("");
+    if (!is_dir($directory) || !is_writable($directory)) {
+      if (!$createDirectory) {
+        throw new \InvalidArgumentException("Directory does not exist or is not writable.");
       }
-      $directoryAbsolutePath = realpath($directory);
-    }
-
-    $this->directory = $directoryAbsolutePath;
-
-  }
-
-  public function getDirectory(): String {
-    return $this->directory;
-  }
-
-  public function setLogBufferSize(int $logBufferSize): void {
-
-    if ($logBufferSize < 1 || $logBufferSize > PHP_INT_MAX) {
-      throw new \InvalidArgumentException(
-        sprintf("Buffer size must be between 1 and %d", PHP_INT_MAX)
-      );
-    }
-    $this->logBufferSize = $logBufferSize;
-
-  }
-
-  public function getLogBufferSize(): int {
-    return $this->logBufferSize;
-  }
-
-  public function write(String $expression): void {
-
-    $this->buffer[] = $expression;
-    if ($count($this->buffer) >= $this->logBufferSize) {
-      if (strlen($this->directory) == 0) {
-        return;
-      }
-      $result = $this->writeLogBufferToFile();
-      if ($result) {
-        $this->resetLogBuffer();
+      if (!mkdir($directory, 0777, true)) {
+        throw new \InvalidArgumentException("Failed to create directory.");
       }
     }
 
-  }
+    $absolutePath = realpath($directory);
+    if ($absolutePath === false) {
+      throw new \InvalidArgumentException("Directory path cannot be resolved.");
+    }
 
-  public function writeLogBufferToFile(): bool {
-
-    $filepath = sprintf("%s/%s.log", $this->directory, date("Y-m-d"));
-    $contents = sprintf("%s\r\n", implode("\r\n", $this->logBuffer));
-    $written = file_put_contents($filepath, $contents, FILE_APPEND);
-
-    return $written ? true : false;
+    $this->directory = $absolutePath;
 
   }
 
-  public static function print(String $expression, int $color = -1): void {
-    $color = ($color != -1 && $color >= 30) ? $color : self::ANSI_FONT_RESET;
-    printf("\033[0;%sm%s\033[0m\r\n", $color, $expression);
+	public function getDirectory(): String {
+		return $this->directory;
+	}
+
+	public function setBufferSize(int $bufferSize): void {
+
+		if ($bufferSize < 1 || $bufferSize > self::LOG_BUFFER_MAX_SIZE) {
+			throw new \InvalidArgumentException(
+        sprintf("Buffer size must be between 1 and %d.", self::LOG_BUFFER_MAX_SIZE)
+			);
+		}
+		$this->bufferSize = $bufferSize;
+
+	}
+
+	public function getBufferSize(): int {
+		return $this->bufferSize;
+	}
+
+	public function write(String $expression): void {
+
+    if (mb_strlen($expression) > self::LOG_ENTRY_MAX_LENGTH) {
+      $expression = mb_substr($expression, 0, self::LOG_ENTRY_MAX_LENGTH);
+    }
+		$this->buffer[] = $expression;
+
+    $this->writeBufferToFile(false);
+
+	}
+
+  public function writeBufferToFile(bool $ignoreBufferSize = true): bool {
+
+    if (!$ignoreBufferSize) {
+      if (count($this->buffer) < $this->bufferSize) {
+        return false;
+      }
+    }
+
+    $logFilePath = $this->getLogFilePath();
+    $logFileContents = sprintf("%s%s", implode(PHP_EOL, $this->buffer), PHP_EOL);
+    $this->resetBuffer();
+
+    return file_put_contents($logFilePath, $logFileContents, FILE_APPEND | LOCK_EX);
+
   }
 
-  public const ANSI_FONT_RESET     = 0;
-  public const ANSI_FONT_BLACK     = 30;
-  public const ANSI_FONT_RED       = 31;
-  public const ANSI_FONT_GREEN     = 32;
-  public const ANSI_FONT_YELLOW    = 33;
-  public const ANSI_FONT_BLUE      = 34;
-  public const ANSI_FONT_PURPLE    = 35;
-  public const ANSI_FONT_CYAN      = 36;
-  public const ANSI_FONT_WHITE     = 37;
+	public static function print(String $expression, bool $isError = false): void {
+		$color = $isError ? 31 : 34;
+		printf("\033[0;%sm%s\033[0m\r\n", $color, $expression);
+	}
 
 };
