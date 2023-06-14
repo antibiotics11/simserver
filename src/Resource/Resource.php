@@ -4,28 +4,30 @@ namespace simserver\Resource;
 
 class Resource {
 
-  protected String  $mimeType;
-  protected String  $contents;
+  protected String $mimeType;
+  protected String $contents;
+  protected int    $size;
 
-  public function __construct(String $mimeType = "", String $contents = "") {
-    $this->mimeType = $miemType;
-    $this->contents = $contents;
+  public function __construct(String $mimeType = MimeType::TYPE_TXT, String $contents = "") {
+    $this->setMimeType($mimeType);
+    $this->setContents($contents);
   }
 
-  public function setExtension(String $extension): void {
-    $this->mimeType = MimeTYpe::fromName($extension);
-  }
-
-  public function setMimeType(String $type): void {
-    $this->mimeType = $type;
+  public function setMimeType(String $mimeType): void {
+    $this->mimeType = $mimeType;
   }
 
   public function getMimeType(): String {
-    return $this->miemType;
+    return $this->mimeType;
+  }
+
+  public function getSize(): int {
+    return $this->size;
   }
 
   public function setContents(String $contents): void {
     $this->contents = $contents;
+    $this->size = strlen($contents);
   }
 
   public function getContents(): String {
