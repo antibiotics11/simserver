@@ -1,26 +1,28 @@
 <?php
 
 namespace simserver\Message;
-use simserver\Exception\ParseException;
 
 class Message {
 
+  private const CRLF           = "\r\n";
+  private const PROTOCOL       = "HTTP/1.0";
+
   public bool   $request      = false;
-  public String $protocol     = "HTTP/1.0";
+  public String $protocol     = self::PROTOCOL;
 
   public String $path         = "";
   public String $method       = "";
-  public int    $status       = 200;
+  public int    $status       = StatusCode::STATUS_OK;
 
   public Array  $header       = [];
   public String $body         = "";
 
 
-  public static function parseRequest(String $packet): Message {
+  public static function parseRequest(String $data): Message {
 
-    $lines = explode(chr(0x0d).chr(0x0a), $packet);
+    $lines = explode(self::CRLF, $data);
     if (count($lines) < 2) {
-      throw new ParseException("Invalid header format");
+      throw new \InvalidArgumentException("Invalid data format.");
     }
 
     $message = new Message();
@@ -29,22 +31,22 @@ class Message {
 
     $startLine = explode(chr(0x20), $lines[0]);
     if (count($startLine) != 3) {
-      throw new ParseException("Invalid header format");
+      throw new \InvalidArgumentException("Invalid line format.");
     }
 
     $message->method = strtoupper($startLine[0]);
     if (strlen($message->method) < 3) {
-      throw new ParseException("Undefined request method");
+      throw new \InvalidArgumentException("Invalid method.");
     }
 
     $message->path = trim($startLine[1]);
     if (strlen($message->path) < 1) {
-      throw new ParseException("Undefined request path");
+      throw new \InvalidArgumentException("Invalid path.");
     }
 
-    $message->protocol = trim($startLine[2]);
+    $message->protocol = strtoupper(trim($startLine[2]));
     if (strpos($message->protocol, "HTTP/") === false) {
-      throw new ParseException("Undefined protocol");
+      throw new \InvalidArgumentException("Invalid protocol.");
     }
 
     $message->header = [];
@@ -68,7 +70,7 @@ class Message {
       $headerValue = $tmp;
 
       if (strlen($headerName) == 0 || strlen($headerValue) == 0) {
-        throw new ParseException("Invalid header field");
+        throw new \InvalidArgumentException("Invalid header format.");
       }
 
       $message->header[$headerName] = $headerValue;
@@ -80,10 +82,9 @@ class Message {
 
     }
 
-    $message->body = implode(chr(0x0d).chr(0x0a), array_slice($lines, $bodyIndex));
+    $message->body = implode(self::CRLF, array_slice($lines, $bodyIndex));
 
     return $message;
-
 
   }
 
@@ -91,9 +92,5 @@ class Message {
 
 
   }
-
-
-  public const SERVER_HTTP_VERSION = "HTTP/1.0";
-  public const SERVER_SOFTWARE     = "simserver";
 
 };
