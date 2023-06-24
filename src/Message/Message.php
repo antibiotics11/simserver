@@ -4,18 +4,23 @@ namespace simserver\Message;
 
 class Message {
 
-  private const CRLF           = "\r\n";
-  private const PROTOCOL       = "HTTP/1.0";
+  private const CHR_CR_LF           = "\r\n";
+  private const CHR_TAB             = "\t";
+  private const CHR_BLANK           = " ";
+  private const CHR_COLON           = ":";
 
-  public bool   $request      = false;
-  public String $protocol     = self::PROTOCOL;
+  private const DEFAULT_PROTOCOL    = "HTTP/1.0";
+  private const RESPONSE_PROTOCOL   = self::DEFAULT_PROTOCOL;
 
-  public String $path         = "";
-  public String $method       = "";
-  public int    $status       = StatusCode::STATUS_OK;
+  public bool   $request            = false;
+  public String $protocol           = self::DEFAULT_PROTOCOL;
 
-  public Array  $header       = [];
-  public String $body         = "";
+  public String $path               = "";
+  public String $method             = "";
+  public int    $status             = StatusCode::STATUS_OK;
+
+  public Array  $header             = [];
+  public String $body               = "";
 
 
   public static function parseRequest(String $data): Message {
