@@ -40,6 +40,8 @@ class InetAddress {
 		foreach ($dnsRecord as $record) {
 			$ip = $record["ip"] ?? $record["ipv6"];
 			$inetAddress = self::getByAddress($ip);
+			$inetAddress->hostname = $hostname;
+
 			$inetAddresses[] = $inetAddress;
 		}
 
