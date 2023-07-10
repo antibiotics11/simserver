@@ -4,9 +4,15 @@ namespace simserver\Network;
 
 class InetAddress {
 
-	private String  $hostname      = "";           // Domain Name
-	private String  $address       = "";           // IP Address
-	private int     $addressFamily = AF_INET;      // IP Address Family
+	private String  $hostname;          // Domain Name
+	private String  $address;           // IP Address
+	private int     $addressFamily;     // IP Address Family
+
+	private function __construct() {
+		$this->hostname      = "";
+		$this->address       = "";
+		$this->addressFamily = AF_INET;
+	}
 
 	public function getHostname(): String {
 		return $this->hostname;
