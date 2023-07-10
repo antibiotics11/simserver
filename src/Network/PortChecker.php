@@ -4,15 +4,12 @@ namespace simserver\Network;
 
 class PortChecker {
 
-  public static function validatePort(int $port): bool {
+  public static function isValidPort(int $port): bool {
     return ($port > 0 && $port <= 65535);
   }
 
   public static function isPortInUse(int $port, InetAddress $inetAddress, int $protocol = SOL_TCP): bool {
 
-    if (!self::validatePort($port)) {
-      return false;
-    }
     return !self::isPortAvailable($port, $inetAddress, $protocol);
 
   }
