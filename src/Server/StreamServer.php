@@ -2,130 +2,170 @@
 
 namespace simserver\Server;
 use simserver\Network\InetAddress;
-use simserver\Exception\{SocketException, SocketIOException};
+use simserver\Exception\SocketException;
 
 class StreamServer {
-	
-	private                $streamSocket;
-	//private ?\Socket       $streamSocket;
-	private ?InetAddress   $serverName;
-	private int            $listeningPort;
 
-	private int            $socketBufferSize;
+	private Mixed $streamSocket;                     // resource
+	private Mixed $streamContextOptions;             // resource
 
-	public function __construct() {
+	private int   $requestMaxSize;
+	private bool  $isSecureServer;
+	private bool  $isConnectionPersistingServer;
 
-		$this->streamSocket  = null;
-		$this->serverName    = null;
-		$this->listeningPort = -1;
-
+	public function __construct(private InetAddress $address, private int $port) {
+		$this->create($address, $port);
+		$this->streamContextOptions = null;
+		$this->isSecureServer = false;
 	}
 
-	public function getServerName(): ?InetAddress {
-		return $this->serverName;
+	public function __destruct() {
+		$this->shutdownServer();
 	}
 
-	public function getListeningPort(): int {
-		return $this->listeningPort;
-	}
+	public function create(InetAddress $address, int $port): void {
 
-	public function create(InetAddress $serverName, int $listeningPort): void {
+		$address = sprintf("tcp://%s:%d", $address->getAddress(), $port);
+		$this->streamContextOptions ??= stream_context_create([]);
 
-		$this->serverName = $serverName;
-		$this->listeningPort = $listeningPort;
-
-		$this->streamSocket = socket_create(
-			$this->serverName->getFamily(),
-			SOCK_STREAM,
-			SOL_TCP
+		$this->streamSocket = @stream_socket_server(
+			$address,
+			$errorCode, $errorMessage,
+			STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
+			$this->streamContextOptions
 		);
-		if ($e = socket_last_error()) {
-			throw new SocketException(socket_strerror($e));
+
+		if ($this->streamSocket === false) {
+			throw new SocketException(sprintf("Failed to create server: %s", $errorMessage));
 		}
 
-		socket_bind(
-			$this->streamSocket,
-			$this->serverName->getAddress(),
-			$this->listeningPort
-		);
-		if ($e = socket_last_error()) {
-			throw new SocketException(socket_strerror($e));
-		}
+		$this->isConnectionPersistingServer = false;
+		$this->setRequestMaxSize(1024 * 4);
+		$this->setStreamBlocking(false);
 
 	}
 
-	public function listen(?\Closure $process): void {
+	public function listen(\Closure $requestHandler): void {
 
-		if ($this->streamSocket === null) {
-			throw new SocketException("Socket is not set");
-		}
-
-		socket_listen($this->streamSocket);
-		if ($e = socket_last_error()) {
-			throw new SocketException(socket_strerror($e));
-		}
+		$server = [ $this->streamSocket ];
+		$connections = [];
 
 		while (true) {
 
-			$connection = socket_accept($this->streamSocket);
-			if ($connection === false) {
+			foreach ($connections as $i => $connection) {
+				if (!is_resource($connection)) {
+					unset($connections[$i]);
+				}
+			}
+
+			$read = array_merge($server, array_values($connections));
+			$write = null;
+			$except = null;
+
+			if (stream_select($read, $write, $except, 2) === false) {
 				continue;
 			}
 
-			socket_getpeername(
-				$connection,
-				$remoteIp,
-				$remotePort
-			);
+			foreach ($read as $i => $stream) {
 
-			$requestPacket = socket_read(
-				$connection,
-				(10 * 1024 * 1024),
-				PHP_BINARY_READ
-			);
-			if ($requestPacket === false) {
-				throw new SocketIOException(socket_last_error());
-				socket_close($connection);
-				continue;
+				$client = null;
+
+				if ($stream === $this->streamSocket) {
+					$client = stream_socket_accept($this->streamSocket);
+					if ($this->isSecureServer) {
+						stream_socket_enable_crypto($client, true, STREAM_CRYPTO_METHOD_ANY_SERVER);
+					}
+					if ($this->isConnectionPersistingServer) {
+						$connections[] = $client;
+					}
+				} else {
+					$client = $stream;
+				}
+
+				$clientName = stream_socket_get_name($client, true);
+				if ($clientName === false) {
+					fclose($client);
+					if ($this->isConnectionPersistingServer) {
+						unset($connections[$i]);
+					}
+					continue;
+				}
+
+				$request = fread($client, $this->requestMaxSize);
+				if ($request === false) {
+					continue;
+				}
+
+				$response = $requestHandler($request, $clientName);
+
+				if (fwrite($client, $response) === false) {
+					continue;
+				}
+
+				if (!$this->isConnectionPersistingServer) {
+					fclose($client);
+				}
+
 			}
-
-			$responsePacket = $process(
-				$requestPacket,
-				$remoteIp,
-				$remotePort
-			);
-			if (socket_write($connection, $responsePacket) === false) {
-				throw new SocketIOException(socket_last_error());
-			}
-
-			socket_close($connection);
 
 		}
 
 	}
 
-	public function block(): bool {
-		return socket_set_block($this->streamSocket);
-	}
+	public function setSecureServer(String $certificatePath = "", String $keyPath = ""): void {
 
-	public function nonblock(): bool {
-		return socket_set_nonblock($this->streamSocket);
-	}
-
-	public function close(): void {
-	
-		socket_clear_error($this->streamSocket);
-		if (socket_shutdown($this->streamSocket, 2)) {
-			socket_close($this->streamSocket);
-		} else {
-			throw new SocketException("Failed to shut down socket");
+		$certificate = file_get_contents($certificatePath);
+		if (openssl_x509_parse($certificate) === false) {
+			throw new \SocketException("Failed to create secure server: Invalid certificate.");
 		}
-		
+
+		$key = file_get_contents($keyPath);
+		if (openssl_pkey_get_private($key) === false) {
+			throw new \SocketException("Failed to create secure server: Invalid key.");
+		}
+
+		$this->streamContextOptions = stream_context_create([
+			"ssl" => [
+				"local_cert"           => $certificatePath,
+				"local_pk"             => $keyPath,
+				"allow_self_signed"    => true,
+				"verify_peer"          => false,
+				"verify_peer_name"     => false
+			]
+		]);
+
+		$this->shutdownServer();
+		$this->isSecureServer = true;
+		$this->create($this->address, $this->port);
+
 	}
 
-	public function terminate(): void {
-		$this->close();
-		exit(0);
+	public function setPersistentConnection(bool $persistent = false): void {
+		$this->isConnectionPersistingServer = $persistent;
+	}
+
+	public function isConnectionPersisting(): bool {
+		return $this->isConnectionPersistingServer;
+	}
+
+	public function setRequestMaxSize(int $size = 1024 * 4): void {
+		$this->requestMaxSize = $size;
+	}
+
+	public function getRequestMaxSize(): int {
+		return $this->requestMaxSize;
+	}
+
+	public function setRequestTimeout(int $seconds, int $microseconds = 0): bool {
+		return stream_set_timeout($this->streamSocket, $seconds, $microseconds);
+	}
+
+	public function setStreamBlocking(bool $enable = true): bool {
+		return stream_set_blocking($this->streamSocket, $enable);
+	}
+
+	public function shutdownServer(): void {
+		stream_socket_shutdown($this->streamSocket, STREAM_SHUT_RDWR);
 	}
 
 };
