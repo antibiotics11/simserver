@@ -1,108 +1,106 @@
 <?php
 
 namespace simserver\System;
+use simserver\Exception\Exception;
 
 class Logger {
 
-  private const LOG_BUFFER_MAX_SIZE  = 1000;
-  private const LOG_ENTRY_MAX_LENGTH = 512;
+  private static ?self $logger = null;
 
-	private String $directory;
+  public static function getInstance(String $logDirectory = "", int $logBufferMaxSize = 100): self {
 
-	private Array  $buffer;
-	private int    $bufferSize;
+    if (self::$logger === null) {
+      self::$logger = new self($logDirectory, $logBufferMaxSize);
+    }
+    return self::$logger;
 
-  private bool   $printToConsole;
+  }
+
+
+  private String $logDirectory;
+  private Array  $logBuffer;
+  private int    $logBufferMaxSize;
 
   private function getLogFilePath(): String {
 
     $filename = sprintf("%s.log", Time::DateYMD());
-    $path = sprintf("%s/%s", $this->directory, $filename);
+    $filepath = sprintf("%s/%s", $this->logDirectory, $filename);
 
-    return $path;
+    return $filepath;
 
   }
 
-	public function __construct(
-    String $directory, bool $createDirectory = true,
-    bool $printToConsole = true,
-    int $bufferSize = self::LOG_BUFFER_MAX_SIZE
-  ) {
-
-    $this->setDirectory($directory, $createDirectory);
-		$this->resetBuffer();
-		$this->setBufferSize($bufferSize);
-    $this->printToConsole = $printToConsole;
-
+	public function __construct(String $logDirectory, int $logBufferMaxSize = 100) {
+    $this->setLogDirectory($logDirectory);
+    $this->emptyLogBuffer();
+    $this->setLogBufferMaxSize($logBufferMaxSize);
 	}
 
-  public function resetBuffer(): void {
-    $this->buffer = [];
-  }
+  public function setLogDirectory(String $logDirectory): void {
 
-  public function setDirectory(String $directory, bool $createDirectory = true): void {
-
-    if (!is_dir($directory) || !is_writable($directory)) {
-      if (!$createDirectory) {
-        throw new \InvalidArgumentException("Directory does not exist or is not writable.");
-      }
-      if (!mkdir($directory, 0777, true)) {
-        throw new \InvalidArgumentException("Failed to create directory.");
+    if (!is_dir($logDirectory) || !is_writable($logDirectory)) {
+      if (!mkdir($logDirectory, 0777, true)) {
+        throw new Exception("Failed to create directory.");
       }
     }
 
-    $absolutePath = realpath($directory);
+    $absolutePath = realpath($logDirectory);
     if ($absolutePath === false) {
-      throw new \InvalidArgumentException("Directory path cannot be resolved.");
+      throw new Exception("Directory path cannot be resolved.");
     }
 
-    $this->directory = $absolutePath;
+    $this->logDirectory = $absolutePath;
 
   }
 
-	public function getDirectory(): String {
-		return $this->directory;
-	}
+  public function getLogDirectory(): String {
+    return $this->logDirectory;
+  }
 
-	public function setBufferSize(int $bufferSize): void {
+	public function setLogBufferMaxSize(int $logBufferMaxSize): void {
 
-		if ($bufferSize < 1 || $bufferSize > self::LOG_BUFFER_MAX_SIZE) {
-			throw new \InvalidArgumentException(
-        sprintf("Buffer size must be between 1 and %d.", self::LOG_BUFFER_MAX_SIZE)
-			);
-		}
-		$this->bufferSize = $bufferSize;
+    if ($logBufferMaxSize < 1 || $logBufferMaxSize > PHP_INT_MAX) {
+      throw new \InvalidArgumentException();
+    }
+    $this->logBufferMaxSize = $logBufferMaxSize;
 
 	}
 
-	public function getBufferSize(): int {
-		return $this->bufferSize;
+	public function getLogBufferMaxSize(): int {
+		return $this->logBufferMaxSize;
 	}
+
+  public function getLogBuffer(): Array {
+    return $this->logBuffer;
+  }
+
+  public function getLogBufferSize(): int {
+    return count($this->logBufferMaxSize);
+  }
+
+  public function emptyLogBuffer(): void {
+    $this->logBuffer = [];
+  }
 
 	public function write(String $expression): void {
 
-    if (mb_strlen($expression) > self::LOG_ENTRY_MAX_LENGTH) {
-      $expression = mb_substr($expression, 0, self::LOG_ENTRY_MAX_LENGTH);
+		$this->logBuffer[] = trim($expression);
+    if (count($this->logBuffer) >= $this->logBufferMaxSize) {
+      $this->writeLogBufferToFile(false);
     }
-		$this->buffer[] = $expression;
-
-    $this->writeBufferToFile(false);
 
 	}
 
-  public function writeBufferToFile(bool $ignoreBufferSize = true): bool {
-
-    if (!$ignoreBufferSize) {
-      if (count($this->buffer) < $this->bufferSize) {
-        return false;
-      }
-    }
+  public function writeLogBufferToFile(): bool {
 
     $logFilePath = $this->getLogFilePath();
-    $logFileContents = sprintf("%s%s", implode(PHP_EOL, $this->buffer), PHP_EOL);
-    $this->resetBuffer();
+    $logFileContents = sprintf("%s%s", implode(PHP_EOL, $this->logBuffer), PHP_EOL);
 
-    return file_put_contents($logFilePath, $logFileContents, FILE_APPEND | LOCK_EX);
+    if (file_put_contents($logFilePath, $logFileContents, FILE_APPEND | LOCK_EX)) {
+      $this->emptyLogBuffer();
+      return true;
+    }
+    return false;
 
   }
 
