@@ -6,6 +6,18 @@ use simserver\Network\{InetAddress, PortChecker};
 
 class Identification {
 
+  private static ?self $identification = null;
+
+  public static function getInstance(float $timeout = 0.3, int $port = 113): self {
+
+    if (self::$identification === null) {
+      self::$identification = new self($timeout, $port);
+    }
+    return self::$identification;
+
+  }
+
+
   private float $timeout;
   private int   $port;
 
@@ -57,10 +69,6 @@ class Identification {
 
   public function getResponseMessage(): String {
     return $this->responseMessage;
-  }
-
-  public static function getInstance(float $timeout = 0.3, int $port = 113): self {
-    return new self($timeout, $port);
   }
 
   public static function createRequestMessage(int $portOnServer, int $portOnClient): String {
