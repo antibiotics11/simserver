@@ -6,8 +6,8 @@ use simserver\Exception\SocketException;
 
 class StreamServer {
 
-	private Mixed $streamSocket;                     // resource
-	private Mixed $streamContextOptions;             // resource
+	private Mixed $streamSocket;                      // (resource) server stream socket
+	private Mixed $streamContextOptions;              // (resource) server stream socket context options
 
 	private int   $requestMaxSize;
 	private bool  $isSecureServer;
@@ -23,6 +23,13 @@ class StreamServer {
 		$this->shutdownServer();
 	}
 
+	/**
+	 * Creates a server socket at the specified address and port
+	 *
+	 * @param  InetAddress $address The IP address to bind the server socket.
+	 * @param  int         $port    The Port number to bind the server socket.
+	 * @throws SocketException      If the server creation fails.
+	 */
 	public function create(InetAddress $address, int $port): void {
 
 		$address = sprintf("tcp://%s:%d", $address->getAddress(), $port);
@@ -39,41 +46,53 @@ class StreamServer {
 			throw new SocketException(sprintf("Failed to create server: %s", $errorMessage));
 		}
 
+		// Set the initial state of the server
 		$this->isConnectionPersistingServer = false;
 		$this->setRequestMaxSize(1024 * 4);
 		$this->setStreamBlocking(false);
 
 	}
 
-	public function listen(\Closure $requestHandler): void {
+	/**
+	 * Listen for incoming connections and handles requests.
+	 *
+	 * @param \Closure      $requestHandler            A closure that handles incoming requests and returns response.
+	 * @param \Closure|null $unencryptedRequestHandler A closure that handles any cryptographic errors.
+	 */
+	public function listen(\Closure $requestHandler, ?\Closure $unencryptedRequestHandler = null): void {
 
-		$server = [ $this->streamSocket ];
-		$connections = [];
+		$server = [ $this->streamSocket ];         // server stream
+		$connections = [];                         // client streams (persistent connections)
 
 		while (true) {
 
+			 // Clean up closed or abnormal streams from the connections array
 			foreach ($connections as $i => $connection) {
 				if (!is_resource($connection)) {
 					unset($connections[$i]);
 				}
 			}
 
-			$read = array_merge($server, array_values($connections));
-			$write = null;
+			$read   = array_merge($server, array_values($connections));
+			$write  = null;
 			$except = null;
-
 			if (stream_select($read, $write, $except, 2) === false) {
 				continue;
 			}
 
 			foreach ($read as $i => $stream) {
 
-				$client = null;
+				$client             = null;            // (stream) client connection
+				$clientName         = "";              // (string) client name
+				$clientMetadata     = [];              // (array)  client meta data
+				$request            = "";              // (string) request data
+				$response           = "";              // (string) response data
 
 				if ($stream === $this->streamSocket) {
+					// Accept a new client connection if it's the server stream
 					$client = stream_socket_accept($this->streamSocket);
 					if ($this->isSecureServer) {
-						stream_socket_enable_crypto($client, true, STREAM_CRYPTO_METHOD_ANY_SERVER);
+						@stream_socket_enable_crypto($client, true, STREAM_CRYPTO_METHOD_ANY_SERVER);
 					}
 					if ($this->isConnectionPersistingServer) {
 						$connections[] = $client;
@@ -84,6 +103,7 @@ class StreamServer {
 
 				$clientName = stream_socket_get_name($client, true);
 				if ($clientName === false) {
+					// Close the client connection if the name retrieval fails.
 					fclose($client);
 					if ($this->isConnectionPersistingServer) {
 						unset($connections[$i]);
@@ -91,12 +111,21 @@ class StreamServer {
 					continue;
 				}
 
-				$request = fread($client, $this->requestMaxSize);
-				if ($request === false) {
-					continue;
+				$clientMetadata = stream_get_meta_data($client);
+				if (!isset($clientMetadata["crypto"]) && $this->isSecureServer) {
+					// Handle request if the client connection is not properly encrypted.
+					if (is_callable($unencryptedRequestHandler)) {
+						$response = $unencryptedRequestHandler($clientName);
+					} else {
+						continue;
+					}
+				} else {
+					$request = fread($client, $this->requestMaxSize);
+					if ($request === false) {
+						continue;
+					}
+					$response = $requestHandler($request, $clientName);
 				}
-
-				$response = $requestHandler($request, $clientName);
 
 				if (fwrite($client, $response) === false) {
 					continue;
