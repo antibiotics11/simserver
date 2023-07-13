@@ -1,6 +1,6 @@
 <?php
 
-namespace simserver\Message;
+namespace simserver\Http;
 
 enum HeaderField: String {
 

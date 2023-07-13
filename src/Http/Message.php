@@ -1,6 +1,6 @@
 <?php
 
-namespace simserver\Message;
+namespace simserver\Http;
 
 class Message {
 
@@ -17,7 +17,7 @@ class Message {
 
   public String $path               = "";
   public String $method             = "";
-  public int    $status             = StatusCode::STATUS_OK;
+  public int    $status             = StatusCode::OK;
 
   public Array  $header             = [];
   public String $body               = "";
