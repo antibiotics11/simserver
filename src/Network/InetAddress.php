@@ -4,9 +4,9 @@ namespace simserver\Network;
 
 class InetAddress {
 
-	private String  $hostname;          // Domain Name
-	private String  $address;           // IP Address
-	private int     $addressFamily;     // IP Address Family
+	private String  $hostname;
+	private String  $address;
+	private int     $addressFamily;
 
 	private function __construct() {
 		$this->hostname      = "";
@@ -14,22 +14,49 @@ class InetAddress {
 		$this->addressFamily = AF_INET;
 	}
 
+	/**
+	 * Get domain name.
+	 *
+	 * @return String domain name
+	 */
 	public function getHostname(): String {
 		return $this->hostname;
 	}
 
+	/**
+	 * Get IP address string.
+	 *
+	 * @return String IP address
+	 */
 	public function getAddress(): String {
 		return $this->address;
 	}
 
+	/**
+	 * Get IP address family for socket programming.
+	 *
+	 * @return int IP address family constant (AF_INET or AF_INET6)
+	 */
 	public function getAddressFamily(): int {
 		return $this->addressFamily;
 	}
 
+	/**
+	 * Get InetAddress instance by domain name.
+	 *
+	 * @param String $hostname domain name
+	 * @return InetAddress|null InetAddress instance or null
+	 */
 	public static function getByHostname(String $hostname): ?self {
 		return self::getAllByHostname($hostname)[0] ?? null;
 	}
 
+	/**
+	 * Get all InetAddress instanceses by domain name.
+	 *
+	 * @param String $hostname domain name
+	 * @return Array array of InetAddress instances
+	 */
 	public static function getAllByHostname(String $hostname): Array {
 
 		$dnsRecordA = @dns_get_record($hostname, DNS_A);
@@ -55,6 +82,12 @@ class InetAddress {
 
 	}
 
+	/**
+	 * Get InetAddress instance by IP address.
+	 *
+	 * @param String $address IP Address
+	 * @return InetAddress|null InetAddress instance or null
+	 */
 	public static function getByAddress(String $address): ?self {
 
 		$addressFamily = -1;
@@ -74,6 +107,12 @@ class InetAddress {
 
 	}
 
+	/**
+	 * Get InetAddress instance by input (hostname or IP address).
+	 *
+	 * @param String $input hostname or IP address
+	 * @return InetAddress|null InetAddress instance or null
+	 */
 	public static function getByInput(String $input): ?self {
 
 		$target = strtolower(trim($input));
@@ -89,10 +128,22 @@ class InetAddress {
 
 	}
 
+	/**
+	 * Check if given string is a valid IPv6 address.
+	 *
+	 * @param String $address
+	 * @return bool True if string is a valid IPv4 address, false otherwise.
+	 */
 	public static function isIPv4(String $address): bool {
 		return filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false;
 	}
 
+	/**
+	 * Check if given string is a valid IPv6 address.
+	 *
+	 * @param String $address
+	 * @return bool True if string is a valid IPv6 address, false otherwise.
+	 */
 	public static function isIPv6(String $address): bool {
 		return filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false;
 	}
