@@ -4,21 +4,9 @@ namespace simserver\Security;
 
 class CertificateUtils {
 
-  // Verifies validity of a certificate file.
-  public static function verifyCertificateFile($certificateFilePath): bool {
-    $certificate = @file_get_contents($certificateFilePath);
-    return ($certificate === false) ? false : self::verifyCertificate($certificate);
-  }
-
   // Verifies validity of a certificate.
   public static function verifyCertificate(String $certificate): bool {
     return openssl_x509_parse($certificate) !== false;
-  }
-
-  // Verifies validity of a private key file.
-  public static function verifyPrivateKeyFile(String $privateKeyFilePath): bool {
-    $key = @file_get_contents($privateKeyFilePath);
-    return ($key === false) ? false : self::verifyPrivateKey($key);
   }
 
   // Verifies validity of a private key.
