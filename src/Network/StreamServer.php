@@ -2,8 +2,7 @@
 
 namespace simserver\Network;
 use simserver\Security\CertificateUtils;
-use simserver\Exception\SocketException;
-use InvalidArgumentException;
+use simserver\Exception\ServerException;
 
 class StreamServer {
 
