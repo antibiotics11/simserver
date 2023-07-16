@@ -2,10 +2,10 @@
 
 namespace simserver\Exception;
 
-class SocketException extends Exception {
+class ServerException extends \Exception {
 
-	public function __construct(String $description, $exceptionCode = 0) {
-		parent::__construct(sprintf("Socket Exception: %s", $description), $exceptionCode);
+	public function __construct(String $description, int $exceptionCode = 0) {
+		parent::__construct($description, $exceptionCode);
 	}
 
 };

@@ -51,7 +51,7 @@ class StreamServer {
 		);
 
 		if ($this->streamSocket === false) {
-			throw new SocketException(sprintf("Failed to create server: %s", $errorMessage));
+			throw new ServerException(sprintf("Failed to create server: %s", $errorMessage));
 		}
 
 		// Set the initial state of the server
@@ -83,7 +83,7 @@ class StreamServer {
 			$read = array_merge($server, array_values($this->persistentClientConnections));
 			$write = null;
 			$except = null;
-			if (stream_select($read, $write, $except, 2) === false) {
+			if (stream_select($read, $write, $except, 0) === false) {
 				continue;
 			}
 
@@ -163,11 +163,11 @@ class StreamServer {
 		$certificate = @file_get_contents($certificateFilePath);
 		$key = @file_get_contents($privateKeyFilePath);
 		if ($certificate === false || $key === false) {
-			throw new \InvalidArgumentException();
+			throw new ServerException("Failed to read certificate or private key.");
 		}
 
 		if (!CertificateUtils::verifyPrivateKeyWithCertificate($certificate, $key)) {
-			throw new SocketException();
+			throw new ServerException("Private key does not match the certificate.");
 		}
 
 		$this->streamContextOptions = stream_context_create([
@@ -183,7 +183,14 @@ class StreamServer {
 		$this->closeServer();
 		$this->closePersistentClientConnections();
 		$this->isSecureServer = true;
-		$this->create($this->address, $this->port);
+		try {
+			$this->create($this->address, $this->port);
+		} catch (ServerException $e) {
+			throw new ServerException(sprintf("%s%s",
+				"Failed to create secure server:",
+			 	$e->getMessage()
+			));
+		}
 
 	}
 
