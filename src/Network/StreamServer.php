@@ -1,7 +1,9 @@
 <?php
 
 namespace simserver\Network;
+use simserver\Security\CertificateUtils;
 use simserver\Exception\SocketException;
+use InvalidArgumentException;
 
 class StreamServer {
 
@@ -12,22 +14,29 @@ class StreamServer {
 	private bool  $isSecureServer;
 	private bool  $isConnectionPersistingServer;
 
+	private Array $persistentClientConnections;       // client streams (persistent connections)
+
+
 	public function __construct(private InetAddress $address, private int $port) {
 		$this->create($address, $port);
 		$this->streamContextOptions = null;
+		$this->requestMaxSize = -1;
 		$this->isSecureServer = false;
+		$this->isConnectionPersistingServer = false;
+		$this->persistentClientConnections = [];
 	}
 
 	public function __destruct() {
-		$this->shutdownServer();
+		$this->closePersistentClientConnections();
+		$this->closeServer();
 	}
 
 	/**
-	 * Creates a server socket at the specified address and port
+	 * Creates a server socket at the specified address and port.
 	 *
-	 * @param  InetAddress $address The IP address to bind the server socket.
-	 * @param  int         $port    The Port number to bind the server socket.
-	 * @throws SocketException      If the server creation fails.
+	 * @param InetAddress $address  IP address to bind the server socket
+	 * @param int $port             Port number to bind the server socket
+	 * @throws SocketException      If the server creation fails
 	 */
 	public function create(InetAddress $address, int $port): void {
 
@@ -46,8 +55,8 @@ class StreamServer {
 		}
 
 		// Set the initial state of the server
-		$this->isConnectionPersistingServer = false;
 		$this->setRequestMaxSize(1024 * 4);
+		$this->isConnectionPersistingServer = false;
 		$this->setStreamBlocking(false);
 
 	}
@@ -55,25 +64,24 @@ class StreamServer {
 	/**
 	 * Listen for incoming connections and handles requests.
 	 *
-	 * @param \Closure      $requestHandler            A closure that handles incoming requests and returns response.
-	 * @param \Closure|null $unencryptedRequestHandler A closure that handles any cryptographic errors.
+	 * @param \Closure $requestHandler									A closure that handles incoming requests and returns response
+	 * @param \Closure|null $unencryptedRequestHandler	A closure that handles any cryptographic errors
 	 */
 	public function listen(\Closure $requestHandler, ?\Closure $unencryptedRequestHandler = null): void {
 
-		$server = [ $this->streamSocket ];         // server stream
-		$connections = [];                         // client streams (persistent connections)
+		$server = [ $this->streamSocket ]; // server stream
 
 		while (true) {
 
-			 // Clean up closed or abnormal streams from the connections array
-			foreach ($connections as $i => $connection) {
+			// Clean up closed or abnormal streams from the connections array
+			foreach ($this->persistentClientConnections as $i => $connection) {
 				if (!is_resource($connection)) {
-					unset($connections[$i]);
+					unset($this->persistentClientConnections[$i]);
 				}
 			}
 
-			$read   = array_merge($server, array_values($connections));
-			$write  = null;
+			$read = array_merge($server, array_values($this->persistentClientConnections));
+			$write = null;
 			$except = null;
 			if (stream_select($read, $write, $except, 2) === false) {
 				continue;
@@ -81,11 +89,11 @@ class StreamServer {
 
 			foreach ($read as $i => $stream) {
 
-				$client             = null;            // (stream) client connection
-				$clientName         = "";              // (string) client name
-				$clientMetadata     = [];              // (array)  client meta data
-				$request            = "";              // (string) request data
-				$response           = "";              // (string) response data
+				$client = null;            // (stream) client connection
+				$clientMetadata = [];      // (Array) client meta data
+				$clientName = "";          // (string) client name
+				$request = "";             // (string) request data
+				$responses = [];           // (Array) response data
 
 				if ($stream === $this->streamSocket) {
 					// Accept a new client connection if it's the server stream
@@ -94,7 +102,7 @@ class StreamServer {
 						@stream_socket_enable_crypto($client, true, STREAM_CRYPTO_METHOD_ANY_SERVER);
 					}
 					if ($this->isConnectionPersistingServer) {
-						$connections[] = $client;
+						$this->persistentClientConnections[] = $client;
 					}
 				} else {
 					$client = $stream;
@@ -105,7 +113,7 @@ class StreamServer {
 					// Close the client connection if the name retrieval fails.
 					fclose($client);
 					if ($this->isConnectionPersistingServer) {
-						unset($connections[$i]);
+						unset($this->persistentClientConnections[$i]);
 					}
 					continue;
 				}
@@ -123,11 +131,21 @@ class StreamServer {
 					if ($request === false) {
 						continue;
 					}
-					$response = $requestHandler($request, $clientName);
+					$responses = $requestHandler($request, $clientName);
 				}
 
-				if (fwrite($client, $response) === false) {
-					continue;
+				// Check if $responses is already array, otherwise convert it to an array
+				$responses = is_array($responses) ? $responses : [ $responses ];
+
+				// Iterate through each response in the $responses array
+				for ($r = 0; $r < count($responses); $r++) {
+					if (@fwrite($client, $responses[$r]) === false) {
+						continue;
+					}
+					// Flush output buffer to ensure the response is sent immediately
+					if (fflush($client) === false) {
+						continue;
+					}
 				}
 
 				if (!$this->isConnectionPersistingServer) {
@@ -140,29 +158,30 @@ class StreamServer {
 
 	}
 
-	public function setSecureServer(String $certificatePath = "", String $keyPath = ""): void {
+	public function setSecureServer(String $certificateFilePath = "", String $privateKeyFilePath = ""): void {
 
-		$certificate = file_get_contents($certificatePath);
-		if (openssl_x509_parse($certificate) === false) {
-			throw new \SocketException("Failed to create secure server: Invalid certificate.");
+		$certificate = @file_get_contents($certificateFilePath);
+		$key = @file_get_contents($privateKeyFilePath);
+		if ($certificate === false || $key === false) {
+			throw new \InvalidArgumentException();
 		}
 
-		$key = file_get_contents($keyPath);
-		if (openssl_pkey_get_private($key) === false) {
-			throw new \SocketException("Failed to create secure server: Invalid key.");
+		if (!CertificateUtils::verifyPrivateKeyWithCertificate($certificate, $key)) {
+			throw new SocketException();
 		}
 
 		$this->streamContextOptions = stream_context_create([
 			"ssl" => [
-				"local_cert"           => $certificatePath,
-				"local_pk"             => $keyPath,
-				"allow_self_signed"    => true,
-				"verify_peer"          => false,
-				"verify_peer_name"     => false
+				"local_cert"        => $certificateFilePath,
+				"local_pk"          => $privateKeyFilePath,
+				"allow_self_signed" => true,
+				"verify_peer"       => false,
+				"verify_peer_name"  => false
 			]
 		]);
 
-		$this->shutdownServer();
+		$this->closeServer();
+		$this->closePersistentClientConnections();
 		$this->isSecureServer = true;
 		$this->create($this->address, $this->port);
 
@@ -174,6 +193,15 @@ class StreamServer {
 
 	public function isConnectionPersisting(): bool {
 		return $this->isConnectionPersistingServer;
+	}
+
+	public function closePersistentClientConnections(): void {
+
+		foreach ($this->persistentClientConnections as $key => $connection) {
+			flose($connection);
+			unset($this->persistentClientConnections[$key]);
+		}
+
 	}
 
 	public function setRequestMaxSize(int $size = 1024 * 4): void {
@@ -190,9 +218,9 @@ class StreamServer {
 
 	public function setStreamBlocking(bool $enable = true): bool {
 		return stream_set_blocking($this->streamSocket, $enable);
-	}
+	 }
 
-	public function shutdownServer(): void {
+	public function closeServer(): void {
 		stream_socket_shutdown($this->streamSocket, STREAM_SHUT_RDWR);
 	}
 
