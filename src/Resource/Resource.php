@@ -4,34 +4,71 @@ namespace simserver\Resource;
 
 class Resource {
 
-  protected String $mimeType;
-  protected String $contents;
-  protected int    $size;
-
-  public function __construct(String $mimeType = MimeType::TYPE_TXT, String $contents = "") {
+  protected MimeType $mimeType;
+  protected String   $content;
+  
+  protected int      $bytes;
+  protected int      $length;
+  
+  public function __construct(MimeType | String $mimeType = "txt", String $content = "") {
     $this->setMimeType($mimeType);
-    $this->setContents($contents);
+    $this->setContent($content);
   }
-
-  public function setMimeType(String $mimeType): void {
+  
+  /**
+   * Set MIME Type of the resource.
+   * 
+   * @param MimeType|String $mimeType MIME Type to set
+   * @throws InvalidArgumentException When an invalid MIME Type is provided
+   */
+  public function setMimeType(MimeType | String $mimeType): void {
+  
+    if (!$mimeType instanceof MimeType) {
+      $mimeType = strtoupper(trim($mimeType));
+      $mimeType = MimeType::fromName(sprintf("TYPE_%s", $mimeType));
+      if ($mimeType === null) {
+        throw new \InvalidArgumentException("Invalid MIME Type provided.");
+      }
+    }
     $this->mimeType = $mimeType;
-  }
 
-  public function getMimeType(): String {
+  }
+  
+  public function getMimeType(): MimeType {
     return $this->mimeType;
   }
-
-  public function getSize(): int {
-    return $this->size;
+  
+  /**
+   * Set content of the resource.
+   *
+   * @param String $content Content to set
+   */
+  public function setContent(String $content): void {
+    $this->content = $content;
+    $this->bytes = strlen($content);
+    $this->length = mb_strlen($content);
+  }
+  
+  public function getContent(): String {
+    return $this->content;
   }
 
-  public function setContents(String $contents): void {
-    $this->contents = $contents;
-    $this->size = strlen($contents);
+  /**
+   * Get size of the resource in bytes.
+   *
+   * @return int size of the resource in bytes
+   */
+  public function getBytes(): int {
+    return $this->bytes;
   }
 
-  public function getContents(): String {
-    return $this->contents;
+  /**
+   * Get length of the resource in characters.
+   *
+   * @return int length of the resource in characters
+   */  
+  public function getLength(): int {
+    return $this->length;
   }
 
 };
