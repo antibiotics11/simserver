@@ -76,4 +76,13 @@ class Resource {
     return $this->length;
   }
 
+  /**
+   * Get hashes of the resource.
+   *
+   * @return Array hashes of the resource
+   */
+  public function getHashes(): Array {
+    return $this->hashes;
+  }
+
 };
