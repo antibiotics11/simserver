@@ -4,11 +4,15 @@ namespace simserver\Resource;
 
 class Resource {
 
+  use HashTrait;
+
   protected MimeType $mimeType;
   protected String   $content;
   
   protected int      $bytes;
   protected int      $length;
+  
+  protected Array    $hashes;
   
   public function __construct(MimeType | String $mimeType = "txt", String $content = "") {
     $this->setMimeType($mimeType);
@@ -45,6 +49,7 @@ class Resource {
    */
   public function setContent(String $content): void {
     $this->content = $content;
+    $this->hashes = $this->calculateCommonHashes($content);
     $this->bytes = strlen($content);
     $this->length = mb_strlen($content);
   }
