@@ -1,10 +1,9 @@
 <?php
 
 namespace simserver\Resource;
+use simserver\Security\HashCalculator;
 
 class Resource {
-
-  use HashTrait;
 
   protected MimeType $mimeType;
   protected String   $content;
@@ -49,7 +48,7 @@ class Resource {
    */
   public function setContent(String $content): void {
     $this->content = $content;
-    $this->hashes = $this->calculateCommonHashes($content);
+    $this->hashes = HashCalculator::calculateCommonHashes($content);
     $this->bytes = strlen($content);
     $this->length = mb_strlen($content);
   }
