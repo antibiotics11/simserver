@@ -1,36 +1,33 @@
 <?php
 
 namespace simserver\Security;
-
 use simserver\Network\{InetAddress, PortChecker};
+use InvalidArgumentException;
 
 class Identification {
 
   private static ?self $identification = null;
 
-  public static function getInstance(float $timeout = 0.3, int $port = 113): self {
+  public static function getInstance(int $port = 113): self {
 
     if (self::$identification === null) {
-      self::$identification = new self($timeout, $port);
+      self::$identification = new self($port);
     }
     return self::$identification;
 
   }
 
 
-  private float $timeout;
-  private int   $port;
-
+  private int    $port;
   private String $requestMessage;
   private String $responseMessage;
 
-  private function __construct(float $timeout, int $port) {
+  private function __construct(int $port) {
 
-    $this->timeout = $timeout;
     if (PortChecker::isValidPort($port)) {
       $this->port = $port;
     } else {
-      throw new \InvalidArgumentException("Port number must be between 1 and 65535");
+      throw new InvalidArgumentException("Port number must be between 1 and 65535");
     }
 
     $this->requestMessage = "";
@@ -38,20 +35,33 @@ class Identification {
 
   }
 
+  /**
+   * Performs identification using Identification protocol (RFC1413).
+   *
+   * @param InetAddress $target target IP address for identification
+   * @param int $portOnServer   server-side port number
+   * @param int $portOnClient   client-side port number
+   * @return Array|false        identification result as array or false if identification failed
+   */
   public function identify(InetAddress $target, int $portOnServer, int $portOnClient): Array | false {
 
     $address = sprintf("tcp://%s:%d", $target->getAddress(), $this->port);
-    $identSocket = @stream_socket_client($address, $errNo, $errMsg, $this->timeout);
+    $identSocket = @stream_socket_client($address, $errNo, $errMsg);
     if ($identSocket === false) {
       return false;
     }
-
+    stream_set_timeout($identSocket, 0, 200000);
+    
     $identRequest = self::createRequestMessage($portOnServer, $portOnClient);
+    debug_zval_dump($identRequest);
     if (fwrite($identSocket, $identRequest, strlen($identRequest)) === false) {
+      fclose($identSocket);
       return false;
     }
 
     $identResponse = fgets($identSocket);
+    fclose($identSocket);
+
     if ($identResponse === false) {
       return false;
     }
@@ -72,11 +82,15 @@ class Identification {
   }
 
   public static function createRequestMessage(int $portOnServer, int $portOnClient): String {
-
     return sprintf("%d,%d\r\n", $portOnServer, $portOnClient);
-
   }
 
+  /**
+   * Parses response message received during identification.
+   *
+   * @param string $message response message
+   * @return array|false    parsed response message as array or false if parsing failed
+   */
   public static function parseResponseMessage(String $message): Array | false {
 
     $result = [];
