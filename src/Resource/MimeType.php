@@ -4,66 +4,8 @@ namespace simserver\Resource;
 
 class MimeType {
 
+  use EnumLikeTrait;
   private static ?\ReflectionClass $reflector = null;
-  private static function getReflector(): \ReflectionClass {
-    if (self::$reflector === null) {
-      self::$reflector = new \ReflectionClass(self::class);
-    }
-    return self::$reflector;
-  }
-
-  /**
-   * Get all MimeType instances defined in MimeType class constant.
-   *
-   * @return array array of MimeType instances
-   */
-  public static function cases(): Array {
-
-    $reflector = self::getReflector();
-    $cases = [];
-
-    foreach ($reflector->getConstants() as $constantName => $constantValue) {
-      if (str_contains($constantName, "TYPE_")) {
-        $cases[] = new self($constantName, $constantValue);
-      }
-    }
-
-    return $cases;
-
-  }
-
-  /**
-   * Get MimeType instance based on the given MimeType class constant name.
-   *
-   * @param string $typeName MimeType class constant name
-   * @return MimeType|null   A MimeType instance if found, or null if not found
-   */
-  public static function fromName(String $typeName): ?self {
-
-    $cases = array_filter(self::cases(), function($mimeType) use ($typeName) {
-      return strcasecmp($typeName, $mimeType->name) == 0;
-    }, ARRAY_FILTER_USE_BOTH);
-
-    return array_values($cases)[0] ?? null;
-
-  }
-
-  /**
-   * Get MimeType instance based on the given MIME type value.
-   *
-   * @param string $typeValue MIME type value
-   * @return MimeType|null    A MimeType instance if found, or null if not found
-   */
-  public static function from(String $typeValue): ?self {
-
-    $cases = array_filter(self::cases(), function($mimeType) use ($typeValue) {
-      return strcasecmp($typeValue, $mimeType->value) == 0;
-    }, ARRAY_FILTER_USE_BOTH);
-
-    return array_values($cases)[0] ?? null;
-
-  }
-
 
   public const TYPE_AAC    = "audio/aac";
   public const TYPE_ABW    = "application/x-abiword";
@@ -145,10 +87,5 @@ class MimeType {
   public const TYPE_HWPX   = "application/vnd.hancom.hwpx";
   public const TYPE_ALZ    = "application/zip";
   public const TYPE_EGG    = "application/zip";
-
-  public function __construct(public String $name, public String $value = "") {
-    $this->name = trim($name);
-    $this->value = trim($value);
-  }
 
 };
