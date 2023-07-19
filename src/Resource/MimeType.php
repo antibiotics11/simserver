@@ -5,7 +5,8 @@ namespace simserver\Resource;
 class MimeType {
 
   use EnumLikeTrait;
-  private static ?\ReflectionClass $reflector = null;
+  private static ?\ReflectionClass $reflector   = null;
+  private static ?Array            $cachedCases = null;
 
   public const TYPE_AAC    = "audio/aac";
   public const TYPE_ABW    = "application/x-abiword";

@@ -25,14 +25,16 @@ trait EnumLikeTrait {
    */
   public static function cases(): Array {
 
-    $reflector = self::getReflector();
-    $cases = [];
-
-    foreach ($reflector->getConstants() as $constantName => $constantValue) {
-      $cases[] = new self($constantName, $constantValue);
+    if (self::$cachedCases === null) {
+      $reflector = self::getReflector();
+      $cases = [];
+      foreach ($reflector->getConstants() as $constantName => $constantValue) {
+        $cases[] = new self($constantName, $constantValue);
+      }
+      self::$cachedCases = $cases;
     }
 
-    return $cases;
+    return self::$cachedCases;
 
   }
 

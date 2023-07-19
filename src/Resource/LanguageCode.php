@@ -5,7 +5,8 @@ namespace simserver\Resource;
 class LanguageCode {
 
   use EnumLikeTrait;
-  private static ?\ReflectionClass $reflector = null;
+  private static ?\ReflectionClass $reflector   = null;
+  private static ?Array            $cachedCases = null;
 
   /**
    * Get array of LanguageCode instances that match the given nation name.
