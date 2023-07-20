@@ -1,21 +1,9 @@
 <?php
 
 namespace simserver\System;
-use simserver\Exception\Exception;
+use InvalidArgumentException;
 
 class Logger {
-
-  private static ?self $logger = null;
-
-  public static function getInstance(String $logDirectory = "", int $logBufferMaxSize = 100): self {
-
-    if (self::$logger === null) {
-      self::$logger = new self($logDirectory, $logBufferMaxSize);
-    }
-    return self::$logger;
-
-  }
-
 
   private String $logDirectory;
   private Array  $logBuffer;
@@ -30,23 +18,23 @@ class Logger {
 
   }
 
-	public function __construct(String $logDirectory, int $logBufferMaxSize = 100) {
+  public function __construct(String $logDirectory, int $logBufferMaxSize = 100) {
     $this->setLogDirectory($logDirectory);
     $this->emptyLogBuffer();
-    $this->setLogBufferMaxSize($logBufferMaxSize);
-	}
+    $this->logBufferMaxSize = $logBufferMaxSize;
+  }
 
   public function setLogDirectory(String $logDirectory): void {
 
     if (!is_dir($logDirectory) || !is_writable($logDirectory)) {
       if (!mkdir($logDirectory, 0777, true)) {
-        throw new Exception("Failed to create directory.");
+        throw new InvalidArgumentException("Invalid directory or directory is not writable.");
       }
     }
 
     $absolutePath = realpath($logDirectory);
     if ($absolutePath === false) {
-      throw new Exception("Directory path cannot be resolved.");
+      throw new InvalidArgumentException("Directory path cannot be resolved.");
     }
 
     $this->logDirectory = $absolutePath;
@@ -56,19 +44,6 @@ class Logger {
   public function getLogDirectory(): String {
     return $this->logDirectory;
   }
-
-	public function setLogBufferMaxSize(int $logBufferMaxSize): void {
-
-    if ($logBufferMaxSize < 1 || $logBufferMaxSize > PHP_INT_MAX) {
-      throw new \InvalidArgumentException();
-    }
-    $this->logBufferMaxSize = $logBufferMaxSize;
-
-	}
-
-	public function getLogBufferMaxSize(): int {
-		return $this->logBufferMaxSize;
-	}
 
   public function getLogBuffer(): Array {
     return $this->logBuffer;
@@ -82,14 +57,14 @@ class Logger {
     $this->logBuffer = [];
   }
 
-	public function write(String $expression): void {
+  public function write(String $expression): void {
 
-		$this->logBuffer[] = trim($expression);
+    $this->logBuffer[] = trim($expression);
     if (count($this->logBuffer) >= $this->logBufferMaxSize) {
       $this->writeLogBufferToFile(false);
     }
 
-	}
+  }
 
   public function writeLogBufferToFile(): bool {
 
@@ -104,9 +79,9 @@ class Logger {
 
   }
 
-	public static function print(String $expression, bool $isError = false): void {
-		$color = $isError ? 31 : 34;
-		printf("\033[0;%sm%s\033[0m\r\n", $color, $expression);
-	}
+  public function print(String $expression, bool $isError = false): void {
+    $color = $isError ? 31 : 34;
+    printf("\033[0;%sm%s\033[0m\r\n", $color, $expression);
+  }
 
 };
