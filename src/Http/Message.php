@@ -4,26 +4,26 @@ namespace simserver\Http;
 
 class Message {
 
-  private const CHR_CR_LF           = "\r\n";
-  private const CHR_TAB             = "\t";
-  private const CHR_BLANK           = " ";
-  private const CHR_COLON           = ":";
+  private const CHR_CR_LF               = "\r\n";
+  private const CHR_TAB                 = "\t";
+  private const CHR_BLANK               = " ";
+  private const CHR_COLON               = ":";
 
-  private const DEFAULT_PROTOCOL    = "HTTP/1.0";
-  private const RESPONSE_PROTOCOL   = self::DEFAULT_PROTOCOL;
+  private const DEFAULT_PROTOCOL        = "HTTP/1.0";
+  private const RESPONSE_PROTOCOL       = self::DEFAULT_PROTOCOL;
 
-  public bool   $request            = false;
-  public String $protocol           = self::DEFAULT_PROTOCOL;
+  public bool       $request            = false;
+  public String     $protocol           = self::DEFAULT_PROTOCOL;
 
-  public String $path               = "";
-  public String $method             = "";
-  public int    $status             = StatusCode::OK;
+  public String     $path               = "";
+  public String     $method             = "";
+  public StatusCode $status             = StatusCode::OK;
 
-  public Array  $header             = [];
-  public String $body               = "";
+  public Array      $header             = [];
+  public String     $body               = "";
 
 
-  public static function parseRequest(String $data): Message {
+  public static function getFromRequestMessage(String $data): self {
 
     $lines = explode(self::CHR_CR_LF, $data);
     $linesCount = count($lines);
@@ -31,7 +31,7 @@ class Message {
       throw new \InvalidArgumentException("Invalid message format.");
     }
 
-    $message = new Message();
+    $message = new self();
     $message->request = true;
 
     $startLine = explode(self::CHR_BLANK, trim($lines[0]));
@@ -106,7 +106,7 @@ class Message {
 
   }
 
-  public static function packResponse(Message $message): String {
+  public static function toResponseMessage(self $message): String {
 
 
   }
