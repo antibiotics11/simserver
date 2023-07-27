@@ -1,17 +1,22 @@
 <?php
 
+require_once "../src/Exception/ServerException.php";
 require_once "../src/Network/StreamServer.php";
 require_once "../src/Network/InetAddress.php";
 require_once "../src/Security/CertificateUtils.php";
+require_once "../src/System/Logger.php";
 use simserver\Network\{InetAddress, StreamServer};
 
 $server = new StreamServer(InetAddress::getByAddress("127.0.0.1"), 443);
-$server->setSecureServer("cert/server.pem", "cert/server.key");
+$server->setSecureServer("localhost_certificate/server.pem", "localhost_certificate/server.key");
 $server->setRequestMaxSize(1024 * 4);
 $server->setPersistentConnection(true);
 $server->setStreamBlocking(false);
 
-$server->listen(function(String $request, String $client): Array {
+$logger = new simserver\System\Logger("./");
+$logger->print("Starting HTTP/1.1 chunk encoding test server at 127.0.0.1:443");
+
+$server->listen(function(String $request, String $client) use ($logger): Array {
   
   $httpHeader = [
     "HTTP/1.1 200 OK",
@@ -24,7 +29,7 @@ $server->listen(function(String $request, String $client): Array {
 
   $chunkStream = [ implode("\r\n", $httpHeader) ];
  
-  $imageFile = file_get_contents("root/http.png");
+  $imageFile = file_get_contents("document_root/http.png");
   $truncated = "";
   $chunk = "";
 
@@ -36,7 +41,7 @@ $server->listen(function(String $request, String $client): Array {
   }
   $chunkStream[] = "0\r\n\r\n";
   
-  printf("%d chunks sent to %s\r\n", count($chunkStream) - 1, $client);
+  $logger->print(sprintf("%d chunks sent to %s", count($chunkStream) - 1, $client));
   
   return $chunkStream;
 
